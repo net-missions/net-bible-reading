@@ -40,6 +40,28 @@ const Checklist = () => {
     try {
       const progress = await getUserReadingProgress(user.id);
       setReadingProgress(progress);
+      
+      // Auto-expand books with progress
+      const booksWithProgress: Record<string, boolean> = {};
+      let hasExpandedABook = false;
+      
+      // First pass: find books with progress
+      for (const bookName in progress) {
+        const bookProgress = progress[bookName];
+        const hasProgress = Object.values(bookProgress).some(value => value === true);
+        
+        if (hasProgress) {
+          booksWithProgress[bookName] = true;
+        }
+      }
+      
+      // If there are books with progress, expand only the first one
+      // (we could sort by most progress or most recent, but for simplicity we'll use the first one found)
+      const bookToExpand = Object.keys(booksWithProgress)[0];
+      if (bookToExpand) {
+        setExpandedBooks({ [bookToExpand]: true });
+      }
+      
     } catch (error) {
       console.error("Error fetching reading progress:", error);
       toast({
@@ -136,19 +158,24 @@ const Checklist = () => {
     for (let i = 1; i <= chapterCount; i++) {
       const isCompleted = readingProgress[book]?.[i] || false;
       chapters.push(
-        <div key={`${book}-${i}`} className="inline-flex items-center space-x-1.5 m-1 sm:m-1.5">
-          <Checkbox
-            id={`${book}-${i}`}
-            checked={isCompleted}
-            onCheckedChange={(checked) => handleCheckboxChange(book, i, checked === true)}
-            className="data-[state=checked]:bg-primary h-5 w-5 sm:h-5 sm:w-5"
-          />
-          <label
-            htmlFor={`${book}-${i}`}
-            className={`text-sm sm:text-sm select-none cursor-pointer ${isCompleted ? 'line-through text-muted-foreground' : ''}`}
-          >
-            {i}
-          </label>
+        <div 
+          key={`${book}-${i}`} 
+          className="inline-flex items-center justify-center w-[45px] h-[45px] sm:w-[50px] sm:h-[50px]"
+        >
+          <div className="flex items-center space-x-1.5">
+            <Checkbox
+              id={`${book}-${i}`}
+              checked={isCompleted}
+              onCheckedChange={(checked) => handleCheckboxChange(book, i, checked === true)}
+              className="data-[state=checked]:bg-primary h-5 w-5 sm:h-5 sm:w-5"
+            />
+            <label
+              htmlFor={`${book}-${i}`}
+              className={`text-sm sm:text-sm select-none cursor-pointer ${isCompleted ? 'line-through text-muted-foreground' : ''}`}
+            >
+              {i}
+            </label>
+          </div>
         </div>
       );
     }
@@ -160,6 +187,12 @@ const Checklist = () => {
     return bibleBooks.filter(book => 
       book.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+  };
+  
+  // Check if a book has any progress
+  const hasBookProgress = (bookName: string) => {
+    const bookProgress = readingProgress[bookName] || {};
+    return Object.values(bookProgress).some(value => value === true);
   };
   
   // Toggle book expansion
@@ -208,17 +241,23 @@ const Checklist = () => {
                     const completedChapters = Object.values(readingProgress[book.name] || {}).filter(Boolean).length;
                     const percentage = Math.round((completedChapters / totalChapters) * 100);
                     const isExpanded = expandedBooks[book.name] || false;
+                    const hasProgress = hasBookProgress(book.name);
                     
                     return (
-                      <div key={book.name} className="border rounded-md overflow-hidden bg-card">
+                      <div 
+                        key={book.name} 
+                        className={`border rounded-md overflow-hidden bg-card ${hasProgress ? 'border-primary/30' : ''}`}
+                      >
                         <div 
-                          className="px-3 sm:px-3 py-2.5 sm:py-2.5 flex items-center justify-between cursor-pointer hover:bg-muted/30"
+                          className={`px-3 sm:px-3 py-2.5 sm:py-2.5 flex items-center justify-between cursor-pointer hover:bg-muted/30 ${hasProgress ? 'bg-primary/5' : ''}`}
                           onClick={() => toggleBookExpansion(book.name)}
                         >
                           <div className="flex items-center gap-2">
                             <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                            <span className="font-medium text-sm sm:text-sm">{book.name}</span>
-                            {completedChapters === totalChapters && (
+                            <span className={`font-medium text-sm sm:text-sm ${hasProgress ? 'text-primary' : ''}`}>
+                              {book.name}
+                            </span>
+                            {completedChapters === totalChapters && totalChapters > 0 && (
                               <Badge variant="outline" className="ml-1 py-0 h-5 text-xs">Completed</Badge>
                             )}
                           </div>
@@ -231,8 +270,10 @@ const Checklist = () => {
                         </div>
                         
                         {isExpanded && (
-                          <div className="p-3 sm:p-3 bg-muted/20 flex flex-wrap border-t">
-                            {renderChapters(book.name, book.chapters)}
+                          <div className="p-3 sm:p-4 bg-muted/20 border-t">
+                            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1 sm:gap-2">
+                              {renderChapters(book.name, book.chapters)}
+                            </div>
                           </div>
                         )}
                       </div>
