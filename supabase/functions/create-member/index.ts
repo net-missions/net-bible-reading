@@ -102,6 +102,50 @@ serve(async (req) => {
     const email = `${firstName.toLowerCase()}@netmissions.com`;
     const password = lastName;
 
+    // Check for existing users with the same name
+    const { data: existingProfiles, error: profileCheckError } = await supabaseAdmin
+      .from('profiles')
+      .select('first_name, last_name')
+      .ilike('first_name', firstName)
+      .ilike('last_name', lastName);
+    
+    if (profileCheckError) {
+      console.error("Error checking for existing profiles:", profileCheckError);
+      return new Response(
+        JSON.stringify({ error: `Failed to check for duplicates: ${profileCheckError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    if (existingProfiles && existingProfiles.length > 0) {
+      console.error("Duplicate profile found:", existingProfiles);
+      return new Response(
+        JSON.stringify({ error: `A member with name ${firstName} ${lastName} already exists` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+      );
+    }
+    
+    // Check for existing user with the same email
+    const { data: existingUsers, error: emailCheckError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (emailCheckError) {
+      console.error("Error checking for existing emails:", emailCheckError);
+      return new Response(
+        JSON.stringify({ error: `Failed to check for duplicate emails: ${emailCheckError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    const emailExists = existingUsers?.users.some(u => u.email?.toLowerCase() === email.toLowerCase());
+    
+    if (emailExists) {
+      console.error("Duplicate email found:", email);
+      return new Response(
+        JSON.stringify({ error: `A member with email ${email} already exists` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+      );
+    }
+
     // Create the user with the admin client
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email,

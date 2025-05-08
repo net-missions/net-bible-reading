@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { bibleBooks, getUserReadingProgress, saveChapterCompletion, getUserReadingStats } from "@/services/bibleService";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BookOpen, Search, ChevronRight } from "lucide-react";
+import { BookOpen, Search, ChevronRight, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import AppLayout from "@/components/layout/AppLayout";
 import { toast } from "@/hooks/use-toast";
@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const Checklist = () => {
   const { user } = useAuth();
@@ -41,25 +42,40 @@ const Checklist = () => {
       const progress = await getUserReadingProgress(user.id);
       setReadingProgress(progress);
       
-      // Auto-expand books with progress
-      const booksWithProgress: Record<string, boolean> = {};
-      let hasExpandedABook = false;
+      // Auto-expand books with progress - find the first incomplete book
+      const booksWithProgressOrPartialProgress: Record<string, {completed: boolean, totalChapters: number, completedChapters: number}> = {};
       
-      // First pass: find books with progress
-      for (const bookName in progress) {
-        const bookProgress = progress[bookName];
-        const hasProgress = Object.values(bookProgress).some(value => value === true);
+      // Analyze all books for progress
+      for (const book of bibleBooks) {
+        const bookName = book.name;
+        const bookProgress = progress[bookName] || {};
+        const totalChapters = book.chapters;
+        const completedChapters = Object.values(bookProgress).filter(Boolean).length;
+        const isCompleted = completedChapters === totalChapters && totalChapters > 0;
         
-        if (hasProgress) {
-          booksWithProgress[bookName] = true;
+        if (completedChapters > 0) {
+          booksWithProgressOrPartialProgress[bookName] = {
+            completed: isCompleted,
+            totalChapters,
+            completedChapters
+          };
         }
       }
       
-      // If there are books with progress, expand only the first one
-      // (we could sort by most progress or most recent, but for simplicity we'll use the first one found)
-      const bookToExpand = Object.keys(booksWithProgress)[0];
-      if (bookToExpand) {
-        setExpandedBooks({ [bookToExpand]: true });
+      // Prioritize books with partial progress (not fully completed)
+      const partialProgressBooks = Object.entries(booksWithProgressOrPartialProgress)
+        .filter(([_, data]) => !data.completed)
+        .sort((a, b) => b[1].completedChapters - a[1].completedChapters);
+      
+      // If there's a book with partial progress, expand the one with most progress
+      if (partialProgressBooks.length > 0) {
+        setExpandedBooks({ [partialProgressBooks[0][0]]: true });
+      } else {
+        // Otherwise expand the first book with any progress
+        const bookToExpand = Object.keys(booksWithProgressOrPartialProgress)[0];
+        if (bookToExpand) {
+          setExpandedBooks({ [bookToExpand]: true });
+        }
       }
       
     } catch (error) {
@@ -110,6 +126,36 @@ const Checklist = () => {
           title: "Chapter completed",
           description: `Great job completing ${book} ${chapter}!`,
         });
+        
+        // Check if this completion resulted in completing the book
+        const bookData = bibleBooks.find(b => b.name === book);
+        if (bookData) {
+          const bookProgress = { 
+            ...readingProgress[book], 
+            [chapter]: checked 
+          };
+          
+          const totalChapters = bookData.chapters;
+          const completedChapters = Object.values(bookProgress).filter(Boolean).length;
+          
+          // If book is now complete
+          if (completedChapters === totalChapters) {
+            toast({
+              title: "Book Completed! 🎉",
+              description: `You've completed all chapters in ${book}!`,
+            });
+            
+            // Find the next book with progress but not complete
+            const nextBookToOpen = findNextBookToOpen(book);
+            if (nextBookToOpen) {
+              // Expand the next book and close the current one
+              setExpandedBooks({
+                [book]: false,
+                [nextBookToOpen]: true
+              });
+            }
+          }
+        }
       }
     } else {
       // Revert UI if save failed
@@ -127,6 +173,47 @@ const Checklist = () => {
         variant: "destructive",
       });
     }
+  };
+  
+  // Helper to find the next book to open after completing a book
+  const findNextBookToOpen = (currentBook: string): string | null => {
+    // Find the current book's index
+    const currentBookIndex = bibleBooks.findIndex(b => b.name === currentBook);
+    if (currentBookIndex === -1) return null;
+    
+    // Look for the next book that has some progress but is not complete
+    for (let i = currentBookIndex + 1; i < bibleBooks.length; i++) {
+      const nextBook = bibleBooks[i];
+      const bookProgress = readingProgress[nextBook.name] || {};
+      const completedChapters = Object.values(bookProgress).filter(Boolean).length;
+      
+      // If this book has some progress but is not complete, return it
+      if (completedChapters > 0 && completedChapters < nextBook.chapters) {
+        return nextBook.name;
+      }
+    }
+    
+    // If no book with progress is found after the current one,
+    // look for any book with partial progress
+    for (const book of bibleBooks) {
+      // Skip the current book
+      if (book.name === currentBook) continue;
+      
+      const bookProgress = readingProgress[book.name] || {};
+      const completedChapters = Object.values(bookProgress).filter(Boolean).length;
+      
+      // If this book has some progress but is not complete, return it
+      if (completedChapters > 0 && completedChapters < book.chapters) {
+        return book.name;
+      }
+    }
+    
+    // If no book with partial progress is found, return the next book
+    if (currentBookIndex < bibleBooks.length - 1) {
+      return bibleBooks[currentBookIndex + 1].name;
+    }
+    
+    return null;
   };
 
   // Calculate total completion stats
@@ -195,6 +282,16 @@ const Checklist = () => {
     return Object.values(bookProgress).some(value => value === true);
   };
   
+  // Check if a book is completely finished
+  const isBookCompleted = (bookName: string) => {
+    const book = bibleBooks.find(b => b.name === bookName);
+    if (!book) return false;
+    
+    const bookProgress = readingProgress[bookName] || {};
+    const completedChapters = Object.values(bookProgress).filter(Boolean).length;
+    return completedChapters === book.chapters && book.chapters > 0;
+  };
+  
   // Toggle book expansion
   const toggleBookExpansion = (bookName: string) => {
     setExpandedBooks(prev => ({
@@ -242,30 +339,65 @@ const Checklist = () => {
                     const percentage = Math.round((completedChapters / totalChapters) * 100);
                     const isExpanded = expandedBooks[book.name] || false;
                     const hasProgress = hasBookProgress(book.name);
+                    const isCompleted = isBookCompleted(book.name);
+                    
+                    // Determine the background color based on completion percentage
+                    const getBgColor = () => {
+                      if (!hasProgress) return '';
+                      if (isCompleted) return 'bg-green-100 dark:bg-green-900/20 border-green-300 dark:border-green-700';
+                      return 'bg-primary/5 border-primary/30';
+                    };
                     
                     return (
                       <div 
                         key={book.name} 
-                        className={`border rounded-md overflow-hidden bg-card ${hasProgress ? 'border-primary/30' : ''}`}
+                        className={cn(
+                          "border rounded-md overflow-hidden bg-card", 
+                          getBgColor()
+                        )}
                       >
                         <div 
-                          className={`px-3 sm:px-3 py-2.5 sm:py-2.5 flex items-center justify-between cursor-pointer hover:bg-muted/30 ${hasProgress ? 'bg-primary/5' : ''}`}
+                          className={cn(
+                            "px-3 sm:px-3 py-2.5 sm:py-2.5 flex items-center justify-between cursor-pointer hover:bg-muted/30",
+                            isCompleted && "text-green-700 dark:text-green-500"
+                          )}
                           onClick={() => toggleBookExpansion(book.name)}
                         >
                           <div className="flex items-center gap-2">
-                            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                            <span className={`font-medium text-sm sm:text-sm ${hasProgress ? 'text-primary' : ''}`}>
+                            {isCompleted ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
+                            ) : (
+                              <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            )}
+                            <span className={cn(
+                              "font-medium text-sm sm:text-sm",
+                              isCompleted ? "text-green-700 dark:text-green-500" : (hasProgress ? "text-primary" : "")
+                            )}>
                               {book.name}
                             </span>
-                            {completedChapters === totalChapters && totalChapters > 0 && (
-                              <Badge variant="outline" className="ml-1 py-0 h-5 text-xs">Completed</Badge>
+                            {isCompleted && (
+                              <Badge 
+                                variant="outline" 
+                                className="ml-1 py-0 h-5 text-xs border-green-300 text-green-700 dark:border-green-700 dark:text-green-500"
+                              >
+                                Completed
+                              </Badge>
                             )}
                           </div>
                           <div className="flex items-center space-x-3 sm:space-x-3">
-                            <span className="text-xs sm:text-xs text-muted-foreground">
+                            <span className={cn(
+                              "text-xs sm:text-xs",
+                              isCompleted ? "text-green-700 dark:text-green-500" : "text-muted-foreground"
+                            )}>
                               {completedChapters}/{totalChapters}
                             </span>
-                            <Progress value={percentage} className="w-20 sm:w-20 h-2 sm:h-2" />
+                            <Progress 
+                              value={percentage} 
+                              className={cn(
+                                "w-20 sm:w-20 h-2 sm:h-2",
+                                isCompleted ? "bg-green-200 dark:bg-green-900/40 [&>div]:bg-green-600 dark:[&>div]:bg-green-500" : ""
+                              )}
+                            />
                           </div>
                         </div>
                         

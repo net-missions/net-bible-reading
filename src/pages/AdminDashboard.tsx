@@ -770,8 +770,8 @@ const AdminDashboard = () => {
                     <h3 className="text-lg font-medium">Member List</h3>
                     <div className="relative w-64">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search members..."
+                      <Input 
+                        placeholder="Search members..." 
                         className="pl-8"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -831,13 +831,13 @@ const AdminDashboard = () => {
                                     <Lock className="h-3.5 w-3.5 mr-1" />
                                     Password
                                   </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
                                     onClick={() => openMemberDetail(member)}
-                                  >
-                                    View
-                                  </Button>
+                                >
+                                  View
+                                </Button>
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -1044,7 +1044,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart
                       data={(() => {
                         // Create array for past 14 days
@@ -1094,11 +1094,11 @@ const AdminDashboard = () => {
                         tickLine={false}
                         axisLine={false}
                       />
-                      <RechartsTooltip
+                        <RechartsTooltip 
                         formatter={(value) => [`${value} chapters`, 'Read']}
-                        contentStyle={{ 
-                          backgroundColor: isDarkMode ? "#333" : "#fff",
-                          color: isDarkMode ? "#fff" : "#333",
+                          contentStyle={{ 
+                            backgroundColor: isDarkMode ? "#333" : "#fff",
+                            color: isDarkMode ? "#fff" : "#333",
                           border: isDarkMode ? "1px solid #555" : "1px solid #eee",
                           fontSize: "12px",
                           padding: "8px"
@@ -1109,13 +1109,13 @@ const AdminDashboard = () => {
                         fill={isDarkMode ? "#6E59A5" : "#9b87f5"} 
                         radius={[4, 4, 0, 0]}
                         barSize={8} 
-                      />
+                        />
                     </RechartsBarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
         </DialogContent>
       </Dialog>
       
