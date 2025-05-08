@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getUserReadingStats } from "@/services/bibleService";
@@ -17,6 +16,8 @@ import {
   Cell
 } from "recharts";
 import { useTheme } from "@/contexts/ThemeContext";
+import { supabase } from "@/integrations/supabase/client";
+import { format, subDays, isSameDay } from "date-fns";
 
 const Statistics = () => {
   const { user } = useAuth();
@@ -28,21 +29,94 @@ const Statistics = () => {
     completionRate: 0,
   });
   
-  const [weeklyData, setWeeklyData] = useState<{ day: string; chapters: number }[]>([]);
+  const [weeklyData, setWeeklyData] = useState<{ day: string; chapters: number; date: string }[]>([]);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     if (user) {
-      setStats(getUserReadingStats(user.id));
-      
-      // Generate mock weekly data
-      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      const mockData = days.map(day => ({
-        day,
-        chapters: Math.floor(Math.random() * 4), // 0-3 chapters per day
-      }));
-      setWeeklyData(mockData);
+      fetchUserStats();
+      fetchWeeklyActivity();
     }
   }, [user]);
+  
+  const fetchUserStats = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      const userStats = await getUserReadingStats(user.id);
+      setStats({
+        totalChaptersRead: userStats.totalChaptersRead,
+        streakDays: userStats.streakDays,
+        lastReadDate: userStats.lastReadDate,
+        completionRate: userStats.completionRate
+      });
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchWeeklyActivity = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      
+      // Get the date 7 days ago
+      const sevenDaysAgo = subDays(new Date(), 6);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
+      
+      // Format for Supabase query
+      const startDateStr = sevenDaysAgo.toISOString();
+      
+      // Get all completed readings for the past 7 days
+      const { data, error } = await supabase
+        .from('reading_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('completed', true)
+        .gte('completed_at', startDateStr)
+        .order('completed_at', { ascending: true });
+      
+      if (error) throw error;
+      
+      // Prepare the weekly data with all 7 days
+      const weeklyActivityData = [];
+      for (let i = 0; i < 7; i++) {
+        const date = subDays(new Date(), 6 - i);
+        const formattedDate = format(date, 'yyyy-MM-dd');
+        weeklyActivityData.push({
+          day: format(date, 'EEE'),
+          date: formattedDate,
+          chapters: 0
+        });
+      }
+      
+      // Count completed chapters by day
+      if (data) {
+        data.forEach(item => {
+          if (item.completed_at) {
+            const completedDate = new Date(item.completed_at);
+            const dayEntry = weeklyActivityData.find(day => 
+              isSameDay(new Date(day.date), completedDate)
+            );
+            
+            if (dayEntry) {
+              dayEntry.chapters += 1;
+            }
+          }
+        });
+      }
+      
+      setWeeklyData(weeklyActivityData);
+    } catch (error) {
+      console.error("Error fetching weekly activity:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const chartFillColor = isDarkMode ? "#9b87f5" : "#6E59A5";
   const chartEmptyColor = isDarkMode ? "#333" : "#E5DEFF";
@@ -61,7 +135,7 @@ const Statistics = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalChaptersRead}</div>
+              <div className="text-2xl font-bold">{loading ? "Loading..." : stats.totalChaptersRead}</div>
             </CardContent>
           </Card>
           
@@ -73,7 +147,7 @@ const Statistics = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.streakDays} days</div>
+              <div className="text-2xl font-bold">{loading ? "Loading..." : `${stats.streakDays} days`}</div>
             </CardContent>
           </Card>
           
@@ -86,7 +160,11 @@ const Statistics = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {stats.lastReadDate ? new Date(stats.lastReadDate).toLocaleDateString() : "Never"}
+                {loading 
+                  ? "Loading..." 
+                  : stats.lastReadDate 
+                    ? new Date(stats.lastReadDate).toLocaleDateString() 
+                    : "Never"}
               </div>
             </CardContent>
           </Card>
@@ -99,7 +177,7 @@ const Statistics = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.completionRate}%</div>
+              <div className="text-2xl font-bold">{loading ? "Loading..." : `${stats.completionRate}%`}</div>
               <Progress value={stats.completionRate} className="h-2 mt-2" />
             </CardContent>
           </Card>
@@ -117,36 +195,50 @@ const Statistics = () => {
           </CardHeader>
           <CardContent>
             <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsBarChart data={weeklyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#444" : "#eee"} />
-                  <XAxis 
-                    dataKey="day" 
-                    stroke={isDarkMode ? "#ccc" : "#333"} 
-                  />
-                  <YAxis 
-                    stroke={isDarkMode ? "#ccc" : "#333"}
-                    domain={[0, 3]}
-                    ticks={[0, 1, 2, 3]} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: isDarkMode ? "#333" : "#fff",
-                      color: isDarkMode ? "#fff" : "#333",
-                      border: isDarkMode ? "1px solid #555" : "1px solid #eee"
-                    }} 
-                  />
-                  <Bar dataKey="chapters" radius={[4, 4, 0, 0]}>
-                    {weeklyData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={entry.chapters === 3 ? chartFillColor : chartEmptyColor} 
-                        fillOpacity={entry.chapters / 3}
-                      />
-                    ))}
-                  </Bar>
-                </RechartsBarChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Loading activity data...</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsBarChart data={weeklyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#444" : "#eee"} />
+                    <XAxis 
+                      dataKey="day" 
+                      stroke={isDarkMode ? "#ccc" : "#333"} 
+                    />
+                    <YAxis 
+                      stroke={isDarkMode ? "#ccc" : "#333"}
+                      allowDecimals={false}
+                      domain={[0, 'dataMax']}
+                      minTickGap={1}
+                    />
+                    <Tooltip 
+                      formatter={(value, name) => [`${value} chapters`, 'Read']}
+                      labelFormatter={(label, payload) => {
+                        if (payload && payload.length > 0) {
+                          return format(new Date(payload[0].payload.date), 'MMM d, yyyy');
+                        }
+                        return label;
+                      }}
+                      contentStyle={{ 
+                        backgroundColor: isDarkMode ? "#333" : "#fff",
+                        color: isDarkMode ? "#fff" : "#333",
+                        border: isDarkMode ? "1px solid #555" : "1px solid #eee"
+                      }} 
+                    />
+                    <Bar dataKey="chapters" name="Chapters" radius={[4, 4, 0, 0]} fill={chartFillColor}>
+                      {weeklyData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.chapters > 0 ? chartFillColor : chartEmptyColor} 
+                          fillOpacity={entry.chapters > 0 ? 0.8 + (entry.chapters * 0.05) : 0.2}
+                        />
+                      ))}
+                    </Bar>
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>

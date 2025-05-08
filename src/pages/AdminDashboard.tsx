@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCheck, Book, BookOpen, BarChart as BarChartIcon, UserPlus, Calendar, Search, Lock, Trash2, AlertCircle } from "lucide-react";
+import { UserCheck, Book, BookOpen, BarChart as BarChartIcon, UserPlus, Calendar, Search, Lock, Trash2, AlertCircle, Award } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -55,6 +55,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { bibleBooks } from "@/services/bibleService";
 
 // URL for Supabase API
 const SUPABASE_URL = "https://pibjpeltpfqxicozdefd.supabase.co";
@@ -551,7 +552,105 @@ const AdminDashboard = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="md:col-span-2">
+              <Card className="md:col-span-1">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-base">
+                    <Award className="mr-2 h-5 w-5 text-primary" />
+                    Top Performers
+                  </CardTitle>
+                  <CardDescription>
+                    Members with highest engagement
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {isLoading ? (
+                    <div className="py-6 text-center text-muted-foreground">Loading member data...</div>
+                  ) : members.length === 0 ? (
+                    <div className="py-6 text-center text-muted-foreground">No members found</div>
+                  ) : (
+                    <>
+                      <div>
+                        <div className="text-sm font-medium flex items-center mb-1">
+                          <Award className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+                          Longest Streak
+                        </div>
+                        {(() => {
+                          const topStreakMember = [...members].sort((a, b) => b.streak - a.streak)[0];
+                          
+                          return topStreakMember ? (
+                            <div className="bg-muted/50 rounded-md p-2">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium">{topStreakMember.name}</span>
+                                <span className="text-sm text-primary font-semibold">{topStreakMember.streak} days</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Last active: {topStreakMember.lastActive ? new Date(topStreakMember.lastActive).toLocaleDateString() : "Never"}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">No streak data available</div>
+                          );
+                        })()}
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm font-medium flex items-center mb-1">
+                          <BookOpen className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
+                          Most Chapters Read
+                        </div>
+                        {(() => {
+                          const topReadingMember = [...members].sort((a, b) => b.chaptersRead - a.chaptersRead)[0];
+                          
+                          return topReadingMember ? (
+                            <div className="bg-muted/50 rounded-md p-2">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium">{topReadingMember.name}</span>
+                                <span className="text-sm text-primary font-semibold">{topReadingMember.chaptersRead} chapters</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {Math.round((topReadingMember.chaptersRead / bibleBooks.reduce((sum, book) => sum + book.chapters, 0)) * 100)}% of Bible completed
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">No reading data available</div>
+                          );
+                        })()}
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-medium flex items-center mb-1">
+                          <Calendar className="h-3.5 w-3.5 mr-1.5 text-blue-500" />
+                          Most Recent Activity
+                        </div>
+                        {(() => {
+                          // Sort by most recent activity
+                          const mostRecentMember = [...members]
+                            .filter(m => m.lastActive)
+                            .sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime())[0];
+                          
+                          return mostRecentMember ? (
+                            <div className="bg-muted/50 rounded-md p-2">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium">{mostRecentMember.name}</span>
+                                <span className="text-sm text-primary font-semibold">
+                                  {new Date(mostRecentMember.lastActive).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {mostRecentMember.chaptersRead} total chapters read
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">No recent activity</div>
+                          );
+                        })()}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              
+              <Card className="md:col-span-1">
                 <CardHeader>
                   <CardTitle>Reading Progress Over Time</CardTitle>
                   <CardDescription>
@@ -620,7 +719,7 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
               
-              <Card>
+              <Card className="md:col-span-1">
                 <CardHeader>
                   <CardTitle>Most Read Books</CardTitle>
                   <CardDescription>
@@ -768,64 +867,254 @@ const AdminDashboard = () => {
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedMember?.name}'s Reading Progress</DialogTitle>
+            <DialogDescription>
+              Detailed reading history and progress for this member
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Chapters</CardTitle>
+                  <CardTitle className="text-sm font-medium">Chapters Read</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{selectedMember?.chaptersRead || 0}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    out of {bibleBooks.reduce((sum, book) => sum + book.chapters, 0)} total
+                  </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Streak</CardTitle>
+                  <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{selectedMember?.streak || 0}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    consecutive days
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="col-span-2 md:col-span-1">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Last Active</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm font-medium">
+                  <div className="text-base font-medium">
                     {selectedMember?.lastActive 
                       ? new Date(selectedMember.lastActive).toLocaleDateString() 
                       : "Never"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {selectedMember?.lastActive 
+                      ? `${Math.floor((Date.now() - new Date(selectedMember.lastActive).getTime()) / (1000 * 60 * 60 * 24))} days ago` 
+                      : "No activity recorded"}
                   </div>
                 </CardContent>
               </Card>
             </div>
             
-            <div className="border rounded-md p-4">
-              <h4 className="text-sm font-medium mb-2">Recent Activity</h4>
-              {memberProgress.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No reading activity found</p>
-              ) : (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {memberProgress
-                    .filter(p => p.completed)
-                    .sort((a, b) => new Date(b.completed_at || "").getTime() - new Date(a.completed_at || "").getTime())
-                    .slice(0, 10)
-                    .map((progress, index) => (
-                      <div key={index} className="flex justify-between text-sm border-b pb-1">
-                        <span>
-                          {progress.book} {progress.chapter}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {progress.completed_at 
-                            ? new Date(progress.completed_at).toLocaleDateString() 
-                            : ""}
-                        </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="border rounded-md p-4">
+                <h4 className="text-sm font-medium mb-2 flex items-center">
+                  <Calendar className="h-4 w-4 mr-1.5 text-primary" />
+                  Recent Activity
+                </h4>
+                {memberProgress.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No reading activity found</p>
+                ) : (
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {memberProgress
+                      .filter(p => p.completed)
+                      .sort((a, b) => new Date(b.completed_at || "").getTime() - new Date(a.completed_at || "").getTime())
+                      .slice(0, 10)
+                      .map((progress, index) => (
+                        <div key={index} className="flex justify-between text-sm border-b pb-1">
+                          <span className="font-medium">
+                            {progress.book} {progress.chapter}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {progress.completed_at 
+                              ? new Date(progress.completed_at).toLocaleDateString() 
+                              : ""}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="border rounded-md p-4">
+                <h4 className="text-sm font-medium mb-2 flex items-center">
+                  <BookOpen className="h-4 w-4 mr-1.5 text-primary" />
+                  Reading Overview
+                </h4>
+                <div className="space-y-3 max-h-[200px] overflow-y-auto">
+                  {memberProgress.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No reading activity found</p>
+                  ) : (
+                    <>
+                      <div className="text-sm">
+                        <span className="font-medium">Most Read Book: </span>
+                        {(() => {
+                          const bookCounts: Record<string, number> = {};
+                          memberProgress
+                            .filter(p => p.completed)
+                            .forEach(item => {
+                              if (item.book) {
+                                bookCounts[item.book] = (bookCounts[item.book] || 0) + 1;
+                              }
+                            });
+                            
+                          // Find book with highest count
+                          const sortedBooks = Object.entries(bookCounts)
+                            .sort((a, b) => b[1] - a[1]);
+                            
+                          return sortedBooks.length > 0 
+                            ? `${sortedBooks[0][0]} (${sortedBooks[0][1]} chapters)` 
+                            : "None";
+                        })()}
                       </div>
-                    ))}
+                      
+                      <div className="text-sm">
+                        <span className="font-medium">Reading Pace: </span>
+                        {(() => {
+                          const completedEntries = memberProgress.filter(p => p.completed);
+                          if (completedEntries.length === 0) return "No data";
+                          
+                          const dates = completedEntries
+                            .map(p => p.completed_at ? new Date(p.completed_at).toISOString().split('T')[0] : null)
+                            .filter(Boolean) as string[];
+                            
+                          const uniqueDates = [...new Set(dates)];
+                          
+                          if (uniqueDates.length === 0) return "No data";
+                          
+                          // Sort dates in ascending order
+                          uniqueDates.sort();
+                          
+                          const firstDate = new Date(uniqueDates[0]);
+                          const lastDate = new Date(uniqueDates[uniqueDates.length - 1]);
+                          const daysDiff = Math.max(1, Math.floor((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                          
+                          const chaptersPerDay = (completedEntries.length / daysDiff).toFixed(1);
+                          
+                          return `${chaptersPerDay} chapters per reading day`;
+                        })()}
+                      </div>
+                      
+                      <div className="text-sm">
+                        <span className="font-medium">Testament Progress: </span>
+                        <div className="mt-1 space-y-1.5">
+                          {(['Old Testament', 'New Testament'] as const).map(testament => {
+                            const testamentBooks = testament === 'Old Testament' ? bibleBooks.slice(0, 39) : bibleBooks.slice(39);
+                            const totalChapters = testamentBooks.reduce((sum, book) => sum + book.chapters, 0);
+                            
+                            const completedChapters = memberProgress
+                              .filter(p => p.completed && 
+                                testamentBooks.some(b => b.name === p.book)
+                              ).length;
+                              
+                            const percentage = Math.round((completedChapters / totalChapters) * 100);
+                            
+                            return (
+                              <div key={testament} className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span>{testament}</span>
+                                  <span>{completedChapters}/{totalChapters} chapters ({percentage}%)</span>
+                                </div>
+                                <Progress value={percentage} className="h-1.5" />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Recent Reading Pattern</CardTitle>
+                <CardDescription>
+                  Chapters read in the last 14 days
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart
+                      data={(() => {
+                        // Create array for past 14 days
+                        const days = [];
+                        for (let i = 13; i >= 0; i--) {
+                          const date = new Date();
+                          date.setDate(date.getDate() - i);
+                          const dateStr = date.toISOString().split('T')[0];
+                          days.push({
+                            date: dateStr,
+                            display: new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                            count: 0
+                          });
+                        }
+                        
+                        // Count completed chapters by day
+                        memberProgress
+                          .filter(p => p.completed && p.completed_at)
+                          .forEach(item => {
+                            if (!item.completed_at) return;
+                            
+                            const dateStr = new Date(item.completed_at).toISOString().split('T')[0];
+                            const dayEntry = days.find(day => day.date === dateStr);
+                            
+                            if (dayEntry) {
+                              dayEntry.count += 1;
+                            }
+                          });
+                          
+                        return days;
+                      })()}
+                      margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                    >
+                      <XAxis 
+                        dataKey="display" 
+                        stroke={isDarkMode ? "#ccc" : "#333"}
+                        tick={{ fontSize: 10 }}
+                        tickLine={false}
+                        interval={1}
+                        angle={-45}
+                        textAnchor="end"
+                      />
+                      <YAxis 
+                        stroke={isDarkMode ? "#ccc" : "#333"}
+                        tick={{ fontSize: 10 }}
+                        allowDecimals={false}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <RechartsTooltip
+                        formatter={(value) => [`${value} chapters`, 'Read']}
+                        contentStyle={{ 
+                          backgroundColor: isDarkMode ? "#333" : "#fff",
+                          color: isDarkMode ? "#fff" : "#333",
+                          border: isDarkMode ? "1px solid #555" : "1px solid #eee",
+                          fontSize: "12px",
+                          padding: "8px"
+                        }}
+                      />
+                      <Bar 
+                        dataKey="count" 
+                        fill={isDarkMode ? "#6E59A5" : "#9b87f5"} 
+                        radius={[4, 4, 0, 0]}
+                        barSize={8} 
+                      />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </DialogContent>
       </Dialog>
