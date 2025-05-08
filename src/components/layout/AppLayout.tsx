@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Book, Calendar, BarChart, Settings, User, LogOut, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +52,35 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const filteredLinks = links.filter(
     (link) => !link.adminOnly || user?.role === "admin"
   );
+
+  // Setup sidebar overlay visibility sync with sidebar state
+  useEffect(() => {
+    const handleSidebarVisibilityChange = () => {
+      const sidebar = document.getElementById("sidebar");
+      const overlay = document.getElementById("sidebar-overlay");
+      
+      if (sidebar && overlay) {
+        const isHidden = sidebar.classList.contains("-translate-x-full");
+        overlay.style.opacity = isHidden ? "0" : "1";
+        overlay.style.pointerEvents = isHidden ? "none" : "auto";
+      }
+    };
+
+    // Setup mutation observer to watch for sidebar class changes
+    const sidebar = document.getElementById("sidebar");
+    if (sidebar) {
+      const observer = new MutationObserver(handleSidebarVisibilityChange);
+      observer.observe(sidebar, { attributes: true, attributeFilter: ["class"] });
+      
+      // Initial call to set the correct state
+      handleSidebarVisibilityChange();
+      
+      // Cleanup function
+      return () => {
+        observer.disconnect();
+      };
+    }
+  }, []);
 
   return (
     <div className="flex h-screen bg-background">
@@ -149,33 +178,5 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     </div>
   );
 };
-
-// JavaScript to sync sidebar overlay with sidebar visibility
-React.useLayoutEffect(() => {
-  const handleSidebarVisibilityChange = () => {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebar-overlay");
-    
-    if (sidebar && overlay) {
-      const isHidden = sidebar.classList.contains("-translate-x-full");
-      overlay.style.opacity = isHidden ? "0" : "1";
-      overlay.style.pointerEvents = isHidden ? "none" : "auto";
-    }
-  };
-
-  // Setup mutation observer to watch for sidebar class changes
-  const sidebar = document.getElementById("sidebar");
-  if (sidebar) {
-    const observer = new MutationObserver(handleSidebarVisibilityChange);
-    observer.observe(sidebar, { attributes: true, attributeFilter: ["class"] });
-  }
-
-  return () => {
-    // Cleanup observer
-    document.querySelectorAll(".mutationObserver").forEach((observer) => {
-      observer.disconnect();
-    });
-  };
-}, []);
 
 export default AppLayout;
