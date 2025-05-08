@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCheck, Book, BookOpen, BarChart as BarChartIcon, UserPlus, Calendar, Search } from "lucide-react";
+import { UserCheck, Book, BookOpen, BarChart as BarChartIcon, UserPlus, Calendar, Search, Lock, Trash2, AlertCircle } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -31,8 +31,33 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+// URL for Supabase API
+const SUPABASE_URL = "https://pibjpeltpfqxicozdefd.supabase.co";
 
 type Member = {
   id: string;
@@ -42,6 +67,13 @@ type Member = {
   lastActive: string;
   streak: number;
 };
+
+// Password reset form schema
+const passwordFormSchema = z.object({
+  newPassword: z.string().min(3, "Password must be at least 3 characters"),
+});
+
+type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 const AdminDashboard = () => {
   const { user, isAdmin } = useAuth();
@@ -58,6 +90,18 @@ const AdminDashboard = () => {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [memberProgress, setMemberProgress] = useState<any[]>([]);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+  const [isPasswordResetting, setIsPasswordResetting] = useState(false);
+  const [passwordMember, setPasswordMember] = useState<Member | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const passwordForm = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordFormSchema),
+    defaultValues: {
+      newPassword: "",
+    },
+  });
   
   useEffect(() => {
     fetchStats();
@@ -255,6 +299,160 @@ const AdminDashboard = () => {
     setIsDetailOpen(false);
     setSelectedMember(null);
     setMemberProgress([]);
+  };
+  
+  const openPasswordReset = (member: Member) => {
+    setPasswordMember(member);
+    setIsPasswordResetOpen(true);
+    passwordForm.reset();
+  };
+  
+  const closePasswordReset = () => {
+    setIsPasswordResetOpen(false);
+    setPasswordMember(null);
+  };
+  
+  const resetPassword = async (values: PasswordFormValues) => {
+    if (!isAdmin || !passwordMember) {
+      return;
+    }
+    
+    setIsPasswordResetting(true);
+    
+    try {
+      // Get admin session for authorization
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        throw new Error(`Session error: ${sessionError.message}`);
+      }
+      
+      if (!sessionData.session) {
+        throw new Error("No active session found. Please log in again.");
+      }
+
+      const token = sessionData.session.access_token;
+      
+      // Use Edge Function to reset password
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: passwordMember.id,
+          newPassword: values.newPassword
+        })
+      });
+      
+      // Parse response
+      const responseText = await response.text();
+      let data;
+      
+      if (responseText && responseText.trim()) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Failed to parse response:", e);
+        }
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Failed to reset password: ${data?.error || 'Unknown error'}`);
+      }
+      
+      // Success message
+      toast({
+        title: "Password reset successful",
+        description: `Password for ${passwordMember.name} has been updated.`,
+      });
+      
+      closePasswordReset();
+    } catch (error) {
+      console.error("Password reset error:", error);
+      toast({
+        title: "Failed to reset password",
+        description: error.message || "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPasswordResetting(false);
+    }
+  };
+
+  const confirmDeleteMember = (member: Member) => {
+    setMemberToDelete(member);
+  };
+
+  const cancelDeleteMember = () => {
+    setMemberToDelete(null);
+  };
+
+  const deleteMember = async () => {
+    if (!memberToDelete || !isAdmin) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      // Get admin session for authorization
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        throw new Error(`Session error: ${sessionError.message}`);
+      }
+      
+      if (!sessionData.session) {
+        throw new Error("No active session found. Please log in again.");
+      }
+
+      const token = sessionData.session.access_token;
+      
+      // Use Edge Function to delete member
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-member`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: memberToDelete.id })
+      });
+      
+      // Parse response
+      const responseText = await response.text();
+      let data;
+      
+      if (responseText && responseText.trim()) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Failed to parse response:", e);
+        }
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete member: ${data?.error || 'Unknown error'}`);
+      }
+      
+      // Success message
+      toast({
+        title: "Member deleted successfully",
+        description: `${memberToDelete.name} has been removed from the system.`,
+      });
+      
+      // Update the members list by refetching
+      fetchMembers();
+      
+      // Close the dialog
+      setMemberToDelete(null);
+    } catch (error) {
+      console.error("Delete member error:", error);
+      toast({
+        title: "Failed to delete member",
+        description: error.message || "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!isAdmin) {
@@ -525,13 +723,32 @@ const AdminDashboard = () => {
                                 {member.lastActive ? new Date(member.lastActive).toLocaleDateString() : "Never"}
                               </TableCell>
                               <TableCell className="text-right">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openMemberDetail(member)}
-                                >
-                                  View
-                                </Button>
+                                <div className="flex justify-end space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openPasswordReset(member)}
+                                  >
+                                    <Lock className="h-3.5 w-3.5 mr-1" />
+                                    Password
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openMemberDetail(member)}
+                                  >
+                                    View
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => confirmDeleteMember(member)}
+                                    className="border-red-200 hover:bg-red-100 hover:text-red-600"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 mr-1 text-red-500" />
+                                    Delete
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))
@@ -612,6 +829,74 @@ const AdminDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Password Reset Dialog */}
+      <Dialog open={isPasswordResetOpen} onOpenChange={(open) => !open && closePasswordReset()}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {passwordMember?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...passwordForm}>
+            <form onSubmit={passwordForm.handleSubmit(resetPassword)} className="space-y-4">
+              <FormField
+                control={passwordForm.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Enter new password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closePasswordReset}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isPasswordResetting}>
+                  {isPasswordResetting ? "Resetting..." : "Reset Password"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!memberToDelete} onOpenChange={(open) => !open && cancelDeleteMember()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertCircle className="h-5 w-5 mr-2 text-red-500" />
+              Delete Member
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {memberToDelete?.name}?
+              <br /><br />
+              This action is permanent and will remove all their reading progress.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={deleteMember} 
+              disabled={isDeleting}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {isDeleting ? "Deleting..." : "Delete Member"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
