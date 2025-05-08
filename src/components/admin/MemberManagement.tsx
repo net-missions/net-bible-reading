@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -19,10 +18,8 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -34,10 +31,8 @@ const MemberManagement = () => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
       firstName: "",
       lastName: "",
-      password: "",
     },
   });
 
@@ -54,36 +49,28 @@ const MemberManagement = () => {
     setIsSubmitting(true);
     
     try {
-      // 1. Create the user in auth
-      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-        email: values.email,
-        password: values.password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: values.firstName,
-          last_name: values.lastName,
-        },
+      // Call the create-member Edge Function
+      const response = await supabase.functions.invoke('create-member', {
+        body: {
+          firstName: values.firstName,
+          lastName: values.lastName
+        }
       });
       
-      if (userError) throw userError;
-      
-      if (!userData.user) {
-        throw new Error("Failed to create user");
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to create member");
       }
       
-      // 2. Assign the member role (profile is created automatically via trigger)
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userData.user.id,
-          role: 'member'
-        });
+      if (!response.data) {
+        throw new Error("Failed to create member");
+      }
       
-      if (roleError) throw roleError;
+      // Generate email for display in the success message
+      const email = `${values.firstName.toLowerCase()}@netmissions.com`;
       
       toast({
         title: "Member added successfully",
-        description: `${values.firstName} ${values.lastName} has been added as a member.`,
+        description: `${values.firstName} ${values.lastName} has been added as a member.\n\nCredentials:\nUsername/Email: ${email}\nPassword: ${values.lastName}`,
       });
       
       form.reset();
@@ -118,20 +105,6 @@ const MemberManagement = () => {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="member@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -162,21 +135,14 @@ const MemberManagement = () => {
               />
             </div>
             
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="******" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="mt-2">
+              <p className="text-sm text-muted-foreground">
+                The member's email will be generated automatically using their name.
+                The first name will be used as username and the last name as password.
+              </p>
+            </div>
             
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="mt-4">
               {isSubmitting ? "Adding..." : "Add Member"}
             </Button>
           </form>

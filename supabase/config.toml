@@ -1,5 +1,7 @@
-
 project_id = "pibjpeltpfqxicozdefd"
 
 [functions.create-first-admin]
 verify_jwt = false
+
+[functions.create-member]
+verify_jwt = true

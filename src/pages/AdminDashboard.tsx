@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { getCongregationStats } from "@/services/bibleService";
 import AppLayout from "@/components/layout/AppLayout";
 import MemberManagement from "@/components/admin/MemberManagement";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,14 +8,18 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCheck, Book, BookOpen, BarChart, UserPlus, Calendar, Search } from "lucide-react";
+import { UserCheck, Book, BookOpen, BarChart as BarChartIcon, UserPlus, Calendar, Search } from "lucide-react";
 import {
   PieChart,
   Pie,
   Cell,
   ResponsiveContainer,
   Legend,
-  Tooltip as RechartsTooltip
+  Tooltip as RechartsTooltip,
+  BarChart as RechartsBarChart,
+  XAxis,
+  YAxis,
+  Bar
 } from "recharts";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -29,6 +31,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 type Member = {
   id: string;
@@ -51,12 +55,83 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [memberProgress, setMemberProgress] = useState<any[]>([]);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   
   useEffect(() => {
-    // Get stats from service
-    setStats(getCongregationStats());
+    fetchStats();
     fetchMembers();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      // Get total users count
+      const { count: totalUsers, error: usersError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      
+      if (usersError) throw usersError;
+      
+      // Get total chapters read
+      const { data: progressData, error: progressError } = await supabase
+        .from('reading_progress')
+        .select('*')
+        .eq('completed', true);
+      
+      if (progressError) throw progressError;
+      
+      const totalChaptersRead = progressData?.length || 0;
+      
+      // Calculate average completion rate
+      const { data: allProgressData, error: allProgressError } = await supabase
+        .from('reading_progress')
+        .select('*');
+        
+      if (allProgressError) throw allProgressError;
+      
+      const totalAssigned = allProgressData?.length || 0;
+      const averageCompletion = totalAssigned > 0 
+        ? Math.round((totalChaptersRead / totalAssigned) * 100) 
+        : 0;
+      
+      // Get top books
+      const { data: topBooksData, error: topBooksError } = await supabase
+        .from('reading_progress')
+        .select('book')
+        .eq('completed', true);
+      
+      if (topBooksError) throw topBooksError;
+      
+      // Count occurrences of each book
+      const bookCounts: Record<string, number> = {};
+      topBooksData?.forEach(item => {
+        if (item.book) {
+          bookCounts[item.book] = (bookCounts[item.book] || 0) + 1;
+        }
+      });
+      
+      // Convert to array and sort by count (descending)
+      const topBooks = Object.entries(bookCounts)
+        .map(([book, count]) => ({ book, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5); // Top 5 books
+      
+      setStats({
+        totalUsers: totalUsers || 0,
+        totalChaptersRead,
+        averageCompletion,
+        topBooks,
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      toast({
+        title: "Failed to fetch statistics",
+        description: "There was an error loading dashboard statistics.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchMembers = async () => {
     try {
@@ -95,8 +170,35 @@ const AdminDashboard = () => {
           if (latestEntry) {
             lastActive = latestEntry.completed_at || "";
             
-            // Calculate streak (simplified version)
-            streak = Math.floor(Math.random() * 20); // Placeholder for demo
+            // Calculate streak from actual data
+            const dates = progressData
+              .filter(p => p.completed)
+              .map(p => p.completed_at?.split('T')[0])
+              .filter(Boolean) as string[];
+            
+            // Get unique dates
+            const uniqueDates = [...new Set(dates)].sort((a, b) => 
+              new Date(b).getTime() - new Date(a).getTime()
+            );
+            
+            // Calculate streak (consecutive days)
+            if (uniqueDates.length > 0) {
+              streak = 1;
+              for (let i = 1; i < uniqueDates.length; i++) {
+                const prevDate = new Date(uniqueDates[i-1]);
+                const currDate = new Date(uniqueDates[i]);
+                
+                // Check if dates are consecutive
+                const diffTime = prevDate.getTime() - currDate.getTime();
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDays === 1) {
+                  streak++;
+                } else {
+                  break;
+                }
+              }
+            }
           }
         }
         
@@ -136,6 +238,24 @@ const AdminDashboard = () => {
   }));
   
   const COLORS = ["#6E59A5", "#9b87f5", "#D6BCFA", "#E5DEFF", "#F2FCE2"];
+
+  const openMemberDetail = async (member: Member) => {
+    setSelectedMember(member);
+    setIsDetailOpen(true);
+    // Fetch detailed progress for the member
+    const { data: progressData } = await supabase
+      .from('reading_progress')
+      .select('*')
+      .eq('user_id', member.id)
+      .order('created_at', { ascending: true });
+    setMemberProgress(progressData || []);
+  };
+
+  const closeMemberDetail = () => {
+    setIsDetailOpen(false);
+    setSelectedMember(null);
+    setMemberProgress([]);
+  };
 
   if (!isAdmin) {
     return (
@@ -183,9 +303,11 @@ const AdminDashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{members.length}</div>
-                  <Progress value={92} className="h-2 mt-2" />
-                  <p className="text-xs text-muted-foreground mt-1">92% active this week</p>
+                  <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                  <Progress value={members.filter(m => m.chaptersRead > 0).length / Math.max(stats.totalUsers, 1) * 100} className="h-2 mt-2" />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.round(members.filter(m => m.chaptersRead > 0).length / Math.max(stats.totalUsers, 1) * 100)}% active this week
+                  </p>
                 </CardContent>
               </Card>
               
@@ -198,7 +320,7 @@ const AdminDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.totalChaptersRead}</div>
-                  <p className="text-xs text-muted-foreground mt-1">+124 in the last 7 days</p>
+                  <p className="text-xs text-muted-foreground mt-1">By all members</p>
                 </CardContent>
               </Card>
               
@@ -224,55 +346,158 @@ const AdminDashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.topBooks.length > 0 ? stats.topBooks[0].book : "None"}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stats.topBooks.length > 0 ? `${stats.topBooks[0].count} chapters` : "No data"}
-                  </p>
+                  <div className="text-2xl font-bold">{stats.topBooks.length > 0 ? stats.topBooks[0].book : "None"}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{stats.topBooks.length > 0 ? `${stats.topBooks[0].count} chapters read` : "No data available"}</p>
                 </CardContent>
               </Card>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="md:col-span-2">
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <UserCheck className="mr-2 h-5 w-5" />
-                    Member Activity
-                  </CardTitle>
+                  <CardTitle>Reading Progress Over Time</CardTitle>
                   <CardDescription>
-                    Track reading progress of all members
+                    Chapters completed by day
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex mb-4">
-                    <div className="relative w-full">
-                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        placeholder="Search members..." 
-                        className="pl-10" 
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RechartsBarChart
+                      data={memberProgress
+                        .filter(p => p.completed)
+                        .reduce((acc: any[], progress: any) => {
+                          const date = progress.completed_at?.split('T')[0] || '';
+                          const existing = acc.find(item => item.date === date);
+                          if (existing) {
+                            existing.count++;
+                          } else if (date) {
+                            acc.push({ date, count: 1 });
+                          }
+                          return acc;
+                        }, [])
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                        .slice(-15) // Show last 15 days with activity
+                      }
+                      margin={{
+                        top: 10,
+                        right: 20,
+                        left: 20,
+                        bottom: 50,
+                      }}
+                    >
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12 }}
+                        angle={-45}
+                        textAnchor="end"
+                        tickFormatter={(value) => {
+                          const date = new Date(value);
+                          return `${date.getMonth()+1}/${date.getDate()}`;
+                        }}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }}
+                        label={{ 
+                          value: 'Chapters', 
+                          angle: -90, 
+                          position: 'insideLeft',
+                          style: { textAnchor: 'middle' } 
+                        }}
+                      />
+                      <RechartsTooltip
+                        formatter={(value, name) => [`${value} chapters`, 'Completed']}
+                        labelFormatter={(label) => {
+                          const date = new Date(label);
+                          return date.toLocaleDateString();
+                        }}
+                      />
+                      <Bar 
+                        dataKey="count" 
+                        name="Chapters" 
+                        fill={isDarkMode ? '#6E59A5' : '#9b87f5'} 
+                        radius={[4, 4, 0, 0]} 
+                      />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Most Read Books</CardTitle>
+                  <CardDescription>
+                    Top books by completion count
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Legend />
+                      <RechartsTooltip
+                        formatter={(value) => [`${value} chapters`, 'Read']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="members">
+            <Card>
+              <CardHeader>
+                <CardTitle>Member Management</CardTitle>
+                <CardDescription>
+                  Add new members and view reading progress
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <MemberManagement />
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium">Member List</h3>
+                    <div className="relative w-64">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search members..."
+                        className="pl-8"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
                   </div>
+                  
                   <div className="rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Name</TableHead>
-                          <TableHead>Chapters Read</TableHead>
-                          <TableHead>Streak</TableHead>
-                          <TableHead>Last Active</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead className="hidden md:table-cell">Progress</TableHead>
+                          <TableHead className="hidden md:table-cell">Streak</TableHead>
+                          <TableHead className="hidden md:table-cell">Last Active</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {isLoading ? (
                           <TableRow>
                             <TableCell colSpan={5} className="text-center py-4">
-                              Loading member data...
+                              Loading members...
                             </TableCell>
                           </TableRow>
                         ) : filteredMembers.length === 0 ? (
@@ -284,34 +509,26 @@ const AdminDashboard = () => {
                         ) : (
                           filteredMembers.map((member) => (
                             <TableRow key={member.id}>
-                              <TableCell>
-                                <div className="font-medium">{member.name}</div>
-                                <div className="text-xs text-muted-foreground">{member.email}</div>
+                              <TableCell className="font-medium">
+                                {member.name}
                               </TableCell>
-                              <TableCell>{member.chaptersRead}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  {member.streak > 0 ? (
-                                    <>
-                                      <span className="font-medium mr-1">{member.streak}</span> 
-                                      <span className="text-xs">days</span>
-                                    </>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground">Inactive</span>
-                                  )}
+                              <TableCell className="hidden md:table-cell">
+                                <div className="flex items-center space-x-2">
+                                  <Progress value={member.chaptersRead > 0 ? 100 : 0} className="h-2 w-32" />
+                                  <span className="text-xs text-muted-foreground">{member.chaptersRead} chapters</span>
                                 </div>
                               </TableCell>
-                              <TableCell>{new Date(member.lastActive).toLocaleDateString()}</TableCell>
-                              <TableCell>
-                                <Button 
-                                  variant="outline" 
+                              <TableCell className="hidden md:table-cell">
+                                {member.streak} days
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                {member.lastActive ? new Date(member.lastActive).toLocaleDateString() : "Never"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="outline"
                                   size="sm"
-                                  onClick={() => {
-                                    toast({
-                                      title: "Member details",
-                                      description: `Viewing details for ${member.name}`,
-                                    });
-                                  }}
+                                  onClick={() => openMemberDetail(member)}
                                 >
                                   View
                                 </Button>
@@ -322,76 +539,79 @@ const AdminDashboard = () => {
                       </TableBody>
                     </Table>
                   </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" onClick={fetchMembers}>Refresh Data</Button>
-                  <Button 
-                    onClick={() => {
-                      document.querySelector('[data-value="members"]')?.dispatchEvent(
-                        new MouseEvent('click', { bubbles: true })
-                      );
-                    }}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Add Members
-                  </Button>
-                </CardFooter>
-              </Card>
-              
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+      
+      {/* Member Detail Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={(open) => !open && closeMemberDetail()}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedMember?.name}'s Reading Progress</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <BarChart className="mr-2 h-5 w-5" />
-                    Most Read Books
-                  </CardTitle>
-                  <CardDescription>
-                    Top 5 most-read books
-                  </CardDescription>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Chapters</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Legend />
-                        <RechartsTooltip 
-                          formatter={(value, name) => [`${value} chapters`, name]} 
-                          contentStyle={{ 
-                            backgroundColor: isDarkMode ? "#333" : "#fff",
-                            color: isDarkMode ? "#fff" : "#333",
-                            border: isDarkMode ? "1px solid #555" : "1px solid #eee"
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
+                  <div className="text-2xl font-bold">{selectedMember?.chaptersRead || 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Streak</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{selectedMember?.streak || 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Last Active</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm font-medium">
+                    {selectedMember?.lastActive 
+                      ? new Date(selectedMember.lastActive).toLocaleDateString() 
+                      : "Never"}
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="members">
-            <MemberManagement />
-          </TabsContent>
-        </Tabs>
-        
-        <div className="text-center text-sm text-muted-foreground py-4">
-          <p>"Let the word of Christ dwell in you richly." - Colossians 3:16</p>
-        </div>
-      </div>
+            
+            <div className="border rounded-md p-4">
+              <h4 className="text-sm font-medium mb-2">Recent Activity</h4>
+              {memberProgress.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No reading activity found</p>
+              ) : (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {memberProgress
+                    .filter(p => p.completed)
+                    .sort((a, b) => new Date(b.completed_at || "").getTime() - new Date(a.completed_at || "").getTime())
+                    .slice(0, 10)
+                    .map((progress, index) => (
+                      <div key={index} className="flex justify-between text-sm border-b pb-1">
+                        <span>
+                          {progress.book} {progress.chapter}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {progress.completed_at 
+                            ? new Date(progress.completed_at).toLocaleDateString() 
+                            : ""}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

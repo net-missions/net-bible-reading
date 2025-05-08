@@ -40,7 +40,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <Book className="h-16 w-16 text-primary animate-pulse mb-4" />
-      <h1 className="text-3xl font-bold mb-2">Scripture Stride Tracker</h1>
+      <h1 className="text-3xl font-bold mb-2">Net Missions Fellowship</h1>
       {isLoading ? (
         <div className="flex items-center">
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />

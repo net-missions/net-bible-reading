@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { z } from "zod";
@@ -65,7 +64,7 @@ const Register = () => {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Book className="h-12 w-12 text-primary mx-auto mb-2" />
-          <h1 className="text-3xl font-bold">Scripture Stride Tracker</h1>
+          <h1 className="text-3xl font-bold">Net Missions Fellowship</h1>
           <p className="text-muted-foreground mt-2">Create an account to start tracking your reading journey</p>
         </div>
 

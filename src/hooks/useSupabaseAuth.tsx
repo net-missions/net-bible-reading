@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
@@ -104,8 +103,28 @@ export const useSupabaseAuth = () => {
         description: "Welcome back!",
       });
       
-      // User role will be determined by the onAuthStateChange listener
-      navigate(data.user?.role === "admin" ? "/admin" : "/dashboard");
+      // Fetch the user's role for navigation
+      if (data.user) {
+        console.log("Login: user id:", data.user.id);
+        const { data: roleData, error: fetchRoleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .single();
+          
+        if (fetchRoleError && fetchRoleError.code !== 'PGRST116') throw fetchRoleError;
+        
+        const userRole = roleData?.role || "member";
+        console.log("Fetched role for navigation:", userRole);
+        
+        if (userRole === "admin") {
+          console.log("Navigating to /admin");
+          navigate("/admin");
+        } else {
+          console.log("Navigating to /checklist");
+          navigate("/checklist");
+        }
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",
@@ -141,24 +160,40 @@ export const useSupabaseAuth = () => {
       
       if (error) throw error;
       
+      // Create profile if user was created
       if (data.user) {
-        // Set the user role
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            first_name: firstName,
+            last_name: lastName
+          });
+        if (profileError) throw profileError;
+
+        // Insert user role
         const { error: roleError } = await supabase
           .from('user_roles')
           .insert({
             user_id: data.user.id,
             role: userRole
           });
-        
         if (roleError) throw roleError;
+
+        // Navigate based on role
+        if (userRole === "admin") {
+          console.log("Navigating to /admin");
+          navigate("/admin");
+        } else {
+          console.log("Navigating to /checklist");
+          navigate("/checklist");
+        }
       }
       
       toast({
-        title: "Registration successful",
-        description: "Welcome to Scripture Stride Tracker!",
+        title: "Success",
+        description: "Welcome to Net Missions Fellowship!",
       });
-      
-      navigate("/dashboard");
     } catch (error: any) {
       toast({
         title: "Registration failed",
@@ -191,7 +226,10 @@ export const useSupabaseAuth = () => {
     }
   };
 
-  const isAdmin = () => role === "admin";
+  // Helper function to check if user is admin
+  const checkIsAdmin = (): boolean => {
+    return role === "admin";
+  };
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return false;
@@ -227,7 +265,7 @@ export const useSupabaseAuth = () => {
     session,
     profile,
     role,
-    isAdmin: isAdmin(),
+    isAdmin: checkIsAdmin(),
     isAuthenticated: !!user,
     isLoading,
     login,

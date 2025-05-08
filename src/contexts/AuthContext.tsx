@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { useSupabaseAuth, Profile, UserRole } from "@/hooks/useSupabaseAuth";
@@ -21,15 +20,52 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const auth = useSupabaseAuth();
+  const [authError, setAuthError] = useState<string | null>(null);
   
-  return (
-    <AuthContext.Provider
-      value={auth}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  try {
+    const auth = useSupabaseAuth();
+    
+    if (authError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-4 flex-col">
+          <div className="bg-destructive text-destructive-foreground p-4 rounded-md max-w-md">
+            <h2 className="text-lg font-bold mb-2">Authentication Error</h2>
+            <p>{authError}</p>
+            <button 
+              className="mt-4 bg-background text-foreground px-4 py-2 rounded-md"
+              onClick={() => window.location.reload()}
+            >
+              Reload App
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <AuthContext.Provider value={auth}>
+        {children}
+      </AuthContext.Provider>
+    );
+  } catch (error) {
+    console.error("Fatal error in AuthProvider:", error);
+    setAuthError(error instanceof Error ? error.message : "Unknown authentication error");
+    
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4 flex-col">
+        <div className="bg-destructive text-destructive-foreground p-4 rounded-md max-w-md">
+          <h2 className="text-lg font-bold mb-2">Authentication Error</h2>
+          <p>{error instanceof Error ? error.message : "Unknown authentication error"}</p>
+          <button 
+            className="mt-4 bg-background text-foreground px-4 py-2 rounded-md"
+            onClick={() => window.location.reload()}
+          >
+            Reload App
+          </button>
+        </div>
+      </div>
+    );
+  }
 };
 
 export const useAuth = () => {

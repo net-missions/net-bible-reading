@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,14 +12,23 @@ const History = () => {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [monthReadings, setMonthReadings] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    if (user) {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth();
-      const readings = getMonthReadings(user.id, year, month);
-      setMonthReadings(readings);
-    }
+    const fetchMonthReadings = async () => {
+      if (user) {
+        setIsLoading(true);
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        
+        // Get initial empty state for the month
+        const readings = getMonthReadings(user.id, year, month);
+        setMonthReadings(readings);
+        setIsLoading(false);
+      }
+    };
+    
+    fetchMonthReadings();
   }, [user, currentDate]);
   
   const navigateMonth = (direction: "prev" | "next") => {
@@ -77,34 +85,36 @@ const History = () => {
   
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Reading History</h1>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:justify-between sm:items-center">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Reading History</h1>
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9"
               onClick={() => navigateMonth("prev")}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
-            <span className="text-lg font-medium">
+            <span className="text-sm sm:text-base md:text-lg font-medium">
               {format(currentDate, "MMMM yyyy")}
             </span>
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9"
               onClick={() => navigateMonth("next")}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </div>
         
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="mr-2 h-5 w-5" />
+        <Card className="shadow-sm border-none">
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="flex items-center text-base sm:text-lg">
+              <Calendar className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
               Monthly Reading Calendar
             </CardTitle>
           </CardHeader>
@@ -112,15 +122,15 @@ const History = () => {
             <div className="w-full max-w-3xl mx-auto">
               {/* Calendar header */}
               <div className="grid grid-cols-7 text-center font-medium mb-2">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                  <div key={day} className="py-2">
-                    {day}
+                {["S", "M", "T", "W", "T", "F", "S"].map((day, idx) => (
+                  <div key={day + idx} className="py-1 sm:py-2 text-xs sm:text-sm">
+                    {window.innerWidth > 400 ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][idx] : day}
                   </div>
                 ))}
               </div>
               
               {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1">
+              <div className={`grid grid-cols-7 gap-0.5 sm:gap-1 ${isLoading ? 'opacity-50' : ''}`}>
                 {weeks.flatMap(week =>
                   week.map((day, dayIndex) => {
                     const dateStr = day.getTime() === 0 ? "" : format(day, "yyyy-MM-dd");
@@ -139,9 +149,9 @@ const History = () => {
                       >
                         {isValid && (
                           <>
-                            <span className="text-sm">{format(day, "d")}</span>
+                            <span className="text-xs sm:text-sm">{format(day, "d")}</span>
                             {completionCount > 0 && (
-                              <span className="text-xs mt-1">
+                              <span className="text-[10px] sm:text-xs mt-0.5 sm:mt-1">
                                 {completionCount}/3
                               </span>
                             )}
@@ -154,23 +164,23 @@ const History = () => {
               </div>
               
               {/* Legend */}
-              <div className="mt-6 flex justify-center">
-                <div className="inline-flex space-x-4">
+              <div className="mt-4 sm:mt-6 flex justify-center flex-wrap">
+                <div className="inline-flex flex-wrap justify-center gap-2 sm:gap-4">
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-muted rounded mr-2"></div>
-                    <span className="text-sm">0 chapters</span>
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-muted rounded mr-1 sm:mr-2"></div>
+                    <span className="text-xs sm:text-sm">0 chapters</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-accent/30 rounded mr-2"></div>
-                    <span className="text-sm">1 chapter</span>
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-accent/30 rounded mr-1 sm:mr-2"></div>
+                    <span className="text-xs sm:text-sm">1 chapter</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-accent/60 rounded mr-2"></div>
-                    <span className="text-sm">2 chapters</span>
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-accent/60 rounded mr-1 sm:mr-2"></div>
+                    <span className="text-xs sm:text-sm">2 chapters</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-accent rounded mr-2"></div>
-                    <span className="text-sm">3 chapters</span>
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-accent rounded mr-1 sm:mr-2"></div>
+                    <span className="text-xs sm:text-sm">3 chapters</span>
                   </div>
                 </div>
               </div>
@@ -178,7 +188,7 @@ const History = () => {
           </CardContent>
         </Card>
         
-        <div className="text-center text-sm text-muted-foreground py-4">
+        <div className="text-center text-xs sm:text-sm text-muted-foreground py-2 sm:py-4">
           <p>"But grow in the grace and knowledge of our Lord and Savior Jesus Christ." - 2 Peter 3:18</p>
         </div>
       </div>
