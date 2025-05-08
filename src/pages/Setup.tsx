@@ -1,10 +1,10 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Book } from "lucide-react";
+import { Book, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -31,9 +32,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const Register = () => {
-  const { register, isLoading } = useAuth();
+const Setup = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasExistingUsers, setHasExistingUsers] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -46,11 +49,80 @@ const Register = () => {
     },
   });
 
+  // Check if there are existing users
+  useState(() => {
+    const checkExistingUsers = async () => {
+      try {
+        const { data: userRoles, error, count } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true });
+        
+        if (error) throw error;
+        
+        if (count && count > 0) {
+          setHasExistingUsers(true);
+          navigate("/login");
+        }
+      } catch (error) {
+        console.error("Error checking existing users:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    checkExistingUsers();
+  }, [navigate]);
+
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
-    await register(values.email, values.password, values.firstName, values.lastName);
-    setIsSubmitting(false);
+    
+    try {
+      const response = await supabase.functions.invoke('create-first-admin', {
+        body: {
+          email: values.email,
+          password: values.password,
+          firstName: values.firstName,
+          lastName: values.lastName
+        }
+      });
+      
+      if (!response.data) {
+        throw new Error(response.error?.message || "Failed to create admin user");
+      }
+      
+      toast({
+        title: "Setup Complete",
+        description: "Admin account created successfully. You can now sign in.",
+      });
+      
+      navigate("/login");
+    } catch (error) {
+      toast({
+        title: "Setup Failed",
+        description: error.message || "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-2">Checking setup status...</p>
+      </div>
+    );
+  }
+
+  if (hasExistingUsers) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <p>Redirecting to login...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
@@ -58,14 +130,14 @@ const Register = () => {
         <div className="mb-8 text-center">
           <Book className="h-12 w-12 text-primary mx-auto mb-2" />
           <h1 className="text-3xl font-bold">Scripture Stride Tracker</h1>
-          <p className="text-muted-foreground mt-2">Create an account to start tracking your reading journey</p>
+          <p className="text-muted-foreground mt-2">First-time setup</p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Create Account</CardTitle>
+            <CardTitle>Create Admin Account</CardTitle>
             <CardDescription>
-              Enter your information to sign up
+              Set up the first administrator account for your congregation
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -106,7 +178,7 @@ const Register = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="you@example.com" {...field} />
+                        <Input placeholder="admin@example.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -141,25 +213,17 @@ const Register = () => {
                 <Button 
                   type="submit"
                   className="w-full"
-                  disabled={isSubmitting || isLoading}
+                  disabled={isSubmitting}
                 >
-                  {isSubmitting || isLoading ? "Creating Account..." : "Create Account"}
+                  {isSubmitting ? "Creating Admin..." : "Create Admin Account"}
                 </Button>
               </form>
             </Form>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <div className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link to="/login" className="text-primary hover:underline">
-                Sign In
-              </Link>
-            </div>
-          </CardFooter>
         </Card>
       </div>
     </div>
   );
 };
 
-export default Register;
+export default Setup;

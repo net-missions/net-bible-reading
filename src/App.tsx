@@ -14,13 +14,14 @@ import History from "./pages/History";
 import Statistics from "./pages/Statistics";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
+import Setup from "./pages/Setup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 // Protected route component
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) => {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
   
   if (isLoading) {
     return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
@@ -30,7 +31,7 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
     return <Navigate to="/login" />;
   }
   
-  if (adminOnly && user?.role !== "admin") {
+  if (adminOnly && !isAdmin) {
     return <Navigate to="/dashboard" />;
   }
   
@@ -41,6 +42,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/register" element={<Register />} />
+    <Route path="/setup" element={<Setup />} />
     <Route 
       path="/" 
       element={<Navigate to="/dashboard" />} 
