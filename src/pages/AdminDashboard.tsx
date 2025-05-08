@@ -84,6 +84,7 @@ const AdminDashboard = () => {
     totalChaptersRead: 0,
     averageCompletion: 0,
     topBooks: [] as { book: string; count: number }[],
+    readingProgressByDay: [] as { date: string; count: number }[],
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
@@ -162,11 +163,28 @@ const AdminDashboard = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5); // Top 5 books
       
+      // Process reading progress data by day
+      const readingProgressByDay = progressData
+        ?.filter(p => p.completed_at)
+        .reduce((acc: { date: string; count: number }[], progress: any) => {
+          const date = progress.completed_at?.split('T')[0] || '';
+          const existing = acc.find(item => item.date === date);
+          if (existing) {
+            existing.count++;
+          } else if (date) {
+            acc.push({ date, count: 1 });
+          }
+          return acc;
+        }, [])
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(-30); // Last 30 days with data
+      
       setStats({
         totalUsers: totalUsers || 0,
         totalChaptersRead,
         averageCompletion,
         topBooks,
+        readingProgressByDay: readingProgressByDay || [],
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -660,21 +678,7 @@ const AdminDashboard = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <RechartsBarChart
-                      data={memberProgress
-                        .filter(p => p.completed)
-                        .reduce((acc: any[], progress: any) => {
-                          const date = progress.completed_at?.split('T')[0] || '';
-                          const existing = acc.find(item => item.date === date);
-                          if (existing) {
-                            existing.count++;
-                          } else if (date) {
-                            acc.push({ date, count: 1 });
-                          }
-                          return acc;
-                        }, [])
-                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                        .slice(-15) // Show last 15 days with activity
-                      }
+                      data={stats.readingProgressByDay}
                       margin={{
                         top: 10,
                         right: 20,
