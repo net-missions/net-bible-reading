@@ -17,6 +17,10 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
+// Get the Supabase URL from the client file
+// We need to look at the client.ts to find this
+const SUPABASE_URL = "https://pibjpeltpfqxicozdefd.supabase.co";
+
 const formSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
@@ -65,8 +69,9 @@ const MemberManagement = () => {
       const token = sessionData.session.access_token;
       setDebugInfo(`Using token: ${token.substring(0, 10)}...`);
       
-      // Get the URL for the Edge Function
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-member`;
+      // Construct the API URL using the hardcoded Supabase URL
+      const apiUrl = `${SUPABASE_URL}/functions/v1/create-member`;
+      setDebugInfo(prev => `${prev}\nAPI URL: ${apiUrl}`);
       
       // Make a direct fetch to the Edge Function
       const response = await fetch(apiUrl, {
@@ -81,13 +86,29 @@ const MemberManagement = () => {
         })
       });
       
-      // Get the response data
-      const data = await response.json();
-      setDebugInfo(prev => `${prev}\nStatus: ${response.status}\nResponse: ${JSON.stringify(data)}`);
+      // Log the raw response information before trying to parse JSON
+      const responseText = await response.text();
+      setDebugInfo(prev => `${prev}\nStatus: ${response.status}\nRaw response: ${responseText}`);
+      
+      // Only try to parse JSON if we have a response with content
+      let data;
+      if (responseText && responseText.trim()) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("JSON parse error:", parseError);
+          setDebugInfo(prev => `${prev}\nJSON parse error: ${parseError.message}`);
+          throw new Error(`Failed to parse response: ${parseError.message}`);
+        }
+      } else {
+        // Handle empty response
+        setDebugInfo(prev => `${prev}\nEmpty response received`);
+        throw new Error("Empty response from server");
+      }
       
       // Handle response status
       if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${data.error || 'Unknown error'}`);
+        throw new Error(`Error ${response.status}: ${data?.error || 'Unknown error'}`);
       }
       
       // Generate email for display in the success message
