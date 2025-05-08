@@ -25,8 +25,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const MemberManagement = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -47,22 +48,46 @@ const MemberManagement = () => {
     }
     
     setIsSubmitting(true);
+    setDebugInfo(null);
     
     try {
-      // Call the create-member Edge Function
-      const response = await supabase.functions.invoke('create-member', {
-        body: {
-          firstName: values.firstName,
-          lastName: values.lastName
-        }
-      });
-      
-      if (response.error) {
-        throw new Error(response.error.message || "Failed to create member");
+      // Use a direct fetch call instead of supabase.functions.invoke
+      // This gives us more control over headers and error handling
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        throw new Error(`Session error: ${sessionError.message}`);
       }
       
-      if (!response.data) {
-        throw new Error("Failed to create member");
+      if (!sessionData.session) {
+        throw new Error("No active session found. Please log in again.");
+      }
+
+      const token = sessionData.session.access_token;
+      setDebugInfo(`Using token: ${token.substring(0, 10)}...`);
+      
+      // Get the URL for the Edge Function
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-member`;
+      
+      // Make a direct fetch to the Edge Function
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          firstName: values.firstName,
+          lastName: values.lastName
+        })
+      });
+      
+      // Get the response data
+      const data = await response.json();
+      setDebugInfo(prev => `${prev}\nStatus: ${response.status}\nResponse: ${JSON.stringify(data)}`);
+      
+      // Handle response status
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${data.error || 'Unknown error'}`);
       }
       
       // Generate email for display in the success message
@@ -74,10 +99,15 @@ const MemberManagement = () => {
       });
       
       form.reset();
+      setDebugInfo(null);
     } catch (error: any) {
+      console.error("Add member error:", error);
+      const errorMsg = error.message || "An unknown error occurred";
+      setDebugInfo(prev => `${prev}\nError: ${errorMsg}`);
+      
       toast({
         title: "Failed to add member",
-        description: error.message || "An unknown error occurred",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -142,9 +172,15 @@ const MemberManagement = () => {
               </p>
             </div>
             
-            <Button type="submit" disabled={isSubmitting} className="mt-4">
+            <Button type="submit" disabled={isSubmitting} className="mt-4 w-full sm:w-auto">
               {isSubmitting ? "Adding..." : "Add Member"}
             </Button>
+            
+            {debugInfo && (
+              <div className="mt-4 p-3 bg-muted rounded text-xs font-mono whitespace-pre-wrap">
+                {debugInfo}
+              </div>
+            )}
           </form>
         </Form>
       </CardContent>

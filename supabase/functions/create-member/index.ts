@@ -13,6 +13,10 @@ serve(async (req) => {
   }
 
   try {
+    // Get authorization header for debugging
+    const authHeader = req.headers.get('Authorization') || 'none';
+    console.log(`Auth header: ${authHeader.substring(0, 15)}...`);
+    
     // Create a Supabase client with the service role key (full admin rights)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -20,7 +24,6 @@ serve(async (req) => {
     );
 
     // Create another client with the auth context from the request
-    const authHeader = req.headers.get('Authorization');
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -40,12 +43,23 @@ serve(async (req) => {
     // Get the current user to verify they are an admin
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     
-    if (authError || !user) {
+    if (authError) {
+      console.error("Auth error:", authError);
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: `Authentication error: ${authError.message}` }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
+    
+    if (!user) {
+      console.error("No user found in auth context");
+      return new Response(
+        JSON.stringify({ error: "No authenticated user found" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    console.log("Authenticated user ID:", user.id);
 
     // Check if the current user is an admin
     const { data: roleData, error: roleCheckError } = await supabaseClient
@@ -54,15 +68,28 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    if (roleCheckError || !roleData || roleData.role !== 'admin') {
+    if (roleCheckError) {
+      console.error("Role check error:", roleCheckError);
+      return new Response(
+        JSON.stringify({ error: `Role check error: ${roleCheckError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
+    
+    if (!roleData || roleData.role !== 'admin') {
+      console.error("User is not an admin:", roleData);
       return new Response(
         JSON.stringify({ error: "Only admin users can create members" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
       );
     }
 
+    console.log("Confirmed admin role");
+
     // Get the request body
-    const { firstName, lastName } = await req.json();
+    const requestBody = await req.json();
+    const { firstName, lastName } = requestBody;
+    console.log("Request body:", requestBody);
 
     if (!firstName || !lastName) {
       return new Response(
@@ -86,9 +113,22 @@ serve(async (req) => {
       }
     });
 
-    if (userError || !userData.user) {
-      throw userError || new Error("Failed to create user");
+    if (userError) {
+      console.error("User creation error:", userError);
+      return new Response(
+        JSON.stringify({ error: `Failed to create user: ${userError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
+
+    if (!userData.user) {
+      return new Response(
+        JSON.stringify({ error: "No user data returned from creation" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    console.log("User created with ID:", userData.user.id);
 
     // Insert user role and profile in transaction-like manner
     const { error: profileError } = await supabaseAdmin
@@ -101,8 +141,12 @@ serve(async (req) => {
 
     if (profileError) {
       // Try to clean up if profile insertion fails
+      console.error("Profile creation error:", profileError);
       await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-      throw profileError;
+      return new Response(
+        JSON.stringify({ error: `Failed to create profile: ${profileError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
 
     const { error: roleError } = await supabaseAdmin
@@ -114,9 +158,15 @@ serve(async (req) => {
 
     if (roleError) {
       // Try to clean up if role insertion fails
+      console.error("Role creation error:", roleError);
       await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-      throw roleError;
+      return new Response(
+        JSON.stringify({ error: `Failed to set user role: ${roleError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
+
+    console.log("Member creation successful");
 
     return new Response(
       JSON.stringify({ 
@@ -131,6 +181,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 201 }
     );
   } catch (error) {
+    console.error("Unhandled error:", error);
     return new Response(
       JSON.stringify({ error: error.message || "An unknown error occurred" }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
