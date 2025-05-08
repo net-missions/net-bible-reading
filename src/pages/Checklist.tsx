@@ -136,16 +136,16 @@ const Checklist = () => {
     for (let i = 1; i <= chapterCount; i++) {
       const isCompleted = readingProgress[book]?.[i] || false;
       chapters.push(
-        <div key={`${book}-${i}`} className="inline-flex items-center space-x-1 m-0.5 sm:m-1">
+        <div key={`${book}-${i}`} className="inline-flex items-center space-x-1.5 m-1 sm:m-1.5">
           <Checkbox
             id={`${book}-${i}`}
             checked={isCompleted}
             onCheckedChange={(checked) => handleCheckboxChange(book, i, checked === true)}
-            className="data-[state=checked]:bg-primary h-3.5 w-3.5 sm:h-4 sm:w-4"
+            className="data-[state=checked]:bg-primary h-5 w-5 sm:h-5 sm:w-5"
           />
           <label
             htmlFor={`${book}-${i}`}
-            className={`text-xs sm:text-sm select-none cursor-pointer ${isCompleted ? 'line-through text-muted-foreground' : ''}`}
+            className={`text-sm sm:text-sm select-none cursor-pointer ${isCompleted ? 'line-through text-muted-foreground' : ''}`}
           >
             {i}
           </label>
@@ -172,25 +172,25 @@ const Checklist = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-3 sm:space-y-4">
+      <div className="space-y-4 sm:space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Bible Reading</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">{format(new Date(), "EEEE, MMMM do")}</p>
+            <h1 className="text-2xl sm:text-2xl font-bold tracking-tight">Bible Reading</h1>
+            <p className="text-sm sm:text-sm text-muted-foreground">{format(new Date(), "EEEE, MMMM do")}</p>
           </div>
-          <div className="bg-muted rounded-md px-2 sm:px-3 py-1.5 sm:py-2 flex items-center text-xs sm:text-sm">
-            <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-primary" />
+          <div className="bg-muted rounded-md px-3 sm:px-3 py-2 sm:py-2 flex items-center text-sm sm:text-sm">
+            <BookOpen className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2 text-primary" />
             <span>{completionStats.completed}/{completionStats.total}</span>
-            <span className="mx-1.5 sm:mx-2 text-muted-foreground">|</span>
+            <span className="mx-2 sm:mx-2 text-muted-foreground">|</span>
             <span>{completionStats.percentage}%</span>
           </div>
         </div>
 
-        <div className="relative mb-2 sm:mb-4">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+        <div className="relative mb-3 sm:mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-4 sm:w-4 text-muted-foreground" />
           <Input
             placeholder="Search books..."
-            className="pl-7 sm:pl-8 h-8 sm:h-10 text-sm"
+            className="pl-9 sm:pl-9 h-10 sm:h-10 text-base"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -201,8 +201,8 @@ const Checklist = () => {
         ) : (
           <Card className="overflow-hidden border-none shadow-sm">
             <CardContent className="p-0">
-              <ScrollArea className="h-[calc(100vh-180px)] sm:h-[calc(100vh-200px)]">
-                <div className="p-2 sm:p-4 space-y-2 sm:space-y-3">
+              <ScrollArea className="h-[calc(100vh-190px)] sm:h-[calc(100vh-200px)]">
+                <div className="p-3 sm:p-4 space-y-3 sm:space-y-3">
                   {getFilteredBooks().map(book => {
                     const totalChapters = book.chapters;
                     const completedChapters = Object.values(readingProgress[book.name] || {}).filter(Boolean).length;
@@ -212,26 +212,26 @@ const Checklist = () => {
                     return (
                       <div key={book.name} className="border rounded-md overflow-hidden bg-card">
                         <div 
-                          className="px-2 sm:px-3 py-1.5 sm:py-2 flex items-center justify-between cursor-pointer hover:bg-muted/30"
+                          className="px-3 sm:px-3 py-2.5 sm:py-2.5 flex items-center justify-between cursor-pointer hover:bg-muted/30"
                           onClick={() => toggleBookExpansion(book.name)}
                         >
-                          <div className="flex items-center gap-1.5">
-                            <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                            <span className="font-medium text-xs sm:text-sm">{book.name}</span>
+                          <div className="flex items-center gap-2">
+                            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            <span className="font-medium text-sm sm:text-sm">{book.name}</span>
                             {completedChapters === totalChapters && (
-                              <Badge variant="outline" className="ml-1 py-0 h-4 text-[10px]">Completed</Badge>
+                              <Badge variant="outline" className="ml-1 py-0 h-5 text-xs">Completed</Badge>
                             )}
                           </div>
-                          <div className="flex items-center space-x-2 sm:space-x-3">
-                            <span className="text-[10px] sm:text-xs text-muted-foreground">
+                          <div className="flex items-center space-x-3 sm:space-x-3">
+                            <span className="text-xs sm:text-xs text-muted-foreground">
                               {completedChapters}/{totalChapters}
                             </span>
-                            <Progress value={percentage} className="w-14 sm:w-20 h-1.5 sm:h-2" />
+                            <Progress value={percentage} className="w-20 sm:w-20 h-2 sm:h-2" />
                           </div>
                         </div>
                         
                         {isExpanded && (
-                          <div className="p-1.5 sm:p-2 bg-muted/20 flex flex-wrap border-t">
+                          <div className="p-3 sm:p-3 bg-muted/20 flex flex-wrap border-t">
                             {renderChapters(book.name, book.chapters)}
                           </div>
                         )}
