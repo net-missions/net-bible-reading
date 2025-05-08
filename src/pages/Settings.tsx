@@ -1,4 +1,3 @@
-
 import React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -25,8 +24,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Bell, Moon, Sun, User } from "lucide-react";
 
 const profileFormSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
+  firstName: z.string().min(2, {
+    message: "First name must be at least 2 characters.",
+  }),
+  lastName: z.string().min(2, {
+    message: "Last name must be at least 2 characters.",
   }),
   email: z.string().email({
     message: "Please enter a valid email address.",
@@ -40,13 +42,14 @@ const notificationsFormSchema = z.object({
 });
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   
   const profileForm = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: user?.name || "",
+      firstName: profile?.first_name || "",
+      lastName: profile?.last_name || "",
       email: user?.email || "",
     },
   });
@@ -60,11 +63,20 @@ const Settings = () => {
     },
   });
   
-  const onProfileSubmit = (values: z.infer<typeof profileFormSchema>) => {
-    toast({
-      title: "Profile updated",
-      description: "Your profile has been updated successfully.",
-    });
+  const onProfileSubmit = async (values: z.infer<typeof profileFormSchema>) => {
+    if (profile) {
+      const success = await updateProfile({
+        first_name: values.firstName,
+        last_name: values.lastName
+      });
+      
+      if (success) {
+        toast({
+          title: "Profile updated",
+          description: "Your profile has been updated successfully.",
+        });
+      }
+    }
   };
   
   const onNotificationsSubmit = (values: z.infer<typeof notificationsFormSchema>) => {
@@ -102,15 +114,31 @@ const Settings = () => {
                 <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
                   <FormField
                     control={profileForm.control}
-                    name="name"
+                    name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>First Name</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
                         <FormDescription>
-                          This is the name that will be displayed on your profile.
+                          Your first name.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={profileForm.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Your last name.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -123,10 +151,10 @@ const Settings = () => {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} disabled />
                         </FormControl>
                         <FormDescription>
-                          We'll use this email for notifications and account recovery.
+                          Your email address (cannot be changed).
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

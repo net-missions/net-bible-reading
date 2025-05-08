@@ -13,10 +13,13 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Book } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -24,6 +27,9 @@ const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().min(6, "Please confirm your password"),
+  role: z.enum(["member", "admin"], {
+    required_error: "Please select a role",
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -34,6 +40,7 @@ type FormValues = z.infer<typeof formSchema>;
 const Register = () => {
   const { register, isLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -43,12 +50,13 @@ const Register = () => {
       email: "",
       password: "",
       confirmPassword: "",
+      role: "member",
     },
   });
 
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
-    await register(values.email, values.password, values.firstName, values.lastName);
+    await register(values.email, values.password, values.firstName, values.lastName, values.role);
     setIsSubmitting(false);
   };
 
@@ -61,7 +69,7 @@ const Register = () => {
           <p className="text-muted-foreground mt-2">Create an account to start tracking your reading journey</p>
         </div>
 
-        <Card>
+        <Card className="border-primary/10">
           <CardHeader>
             <CardTitle>Create Account</CardTitle>
             <CardDescription>
@@ -71,7 +79,7 @@ const Register = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className={`grid grid-cols-1 gap-4 ${!isMobile ? 'sm:grid-cols-2' : ''}`}>
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -134,6 +142,43 @@ const Register = () => {
                       <FormControl>
                         <Input type="password" placeholder="••••••" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Role</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="member" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Member
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="admin" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Administrator
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormDescription>
+                        Select your role in the congregation
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

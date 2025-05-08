@@ -117,10 +117,17 @@ export const useSupabaseAuth = () => {
     }
   };
 
-  const register = async (email: string, password: string, firstName: string, lastName: string) => {
+  const register = async (
+    email: string, 
+    password: string, 
+    firstName: string, 
+    lastName: string, 
+    userRole: UserRole = "member"
+  ) => {
     setIsLoading(true);
     
     try {
+      // Register the user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -133,6 +140,18 @@ export const useSupabaseAuth = () => {
       });
       
       if (error) throw error;
+      
+      if (data.user) {
+        // Set the user role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: data.user.id,
+            role: userRole
+          });
+        
+        if (roleError) throw roleError;
+      }
       
       toast({
         title: "Registration successful",
@@ -175,7 +194,7 @@ export const useSupabaseAuth = () => {
   const isAdmin = () => role === "admin";
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return;
+    if (!user) return false;
     
     try {
       const { error } = await supabase

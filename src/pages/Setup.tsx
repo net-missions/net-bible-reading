@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,7 +50,7 @@ const Setup = () => {
   });
 
   // Check if there are existing users
-  useState(() => {
+  useEffect(() => {
     const checkExistingUsers = async () => {
       try {
         const { data: userRoles, error, count } = await supabase
@@ -96,7 +96,7 @@ const Setup = () => {
       });
       
       navigate("/login");
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Setup Failed",
         description: error.message || "An unknown error occurred",

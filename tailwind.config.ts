@@ -54,9 +54,9 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				scripture: {
-					DEFAULT: '#6E59A5',
-					light: '#E5DEFF',
-					dark: '#1A1F2C',
+					DEFAULT: '#C43A31',
+					light: '#FFE6E6',
+					dark: '#2A1215',
 				}
 			},
 			borderRadius: {

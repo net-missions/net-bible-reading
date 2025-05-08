@@ -15,7 +15,7 @@ type SidebarLink = {
 };
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, profile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -139,7 +139,9 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center">
                 <User className="h-5 w-5 mr-2" />
-                <span className="text-sm font-medium">{user?.name}</span>
+                <span className="text-sm font-medium truncate">
+                  {profile ? `${profile.first_name} ${profile.last_name}`.trim() || user?.email : user?.email}
+                </span>
               </div>
               <Button variant="ghost" size="icon" onClick={toggleTheme}>
                 {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
