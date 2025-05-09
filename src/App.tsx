@@ -51,10 +51,6 @@ const MemberOnlyRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" />;
   }
   
-  if (isAdmin) {
-    return <Navigate to="/admin" />;
-  }
-  
   return <>{children}</>;
 };
 
@@ -71,9 +67,9 @@ const AppRoutes = () => (
     <Route 
       path="/checklist" 
       element={
-        <MemberOnlyRoute>
+        <ProtectedRoute>
           <Checklist />
-        </MemberOnlyRoute>
+        </ProtectedRoute>
       } 
     />
     <Route 
