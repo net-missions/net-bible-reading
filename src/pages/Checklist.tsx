@@ -343,150 +343,208 @@ const Checklist = () => {
     }));
   };
 
+  const chapterCard = (
+    bookName: string,
+    chapterNumber: number,
+    label: string,
+    onClick: () => void,
+    title?: string
+  ) => (
+    <Card
+      className="border-none shadow-[0_2px_15px_rgba(0,0,0,0.04)] bg-paper rounded-[1.75rem] overflow-hidden cursor-pointer transition-all hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
+      onClick={onClick}
+    >
+      <CardContent className="p-4 sm:p-6 md:p-7">
+        <div className="flex justify-between items-center">
+          <div className="space-y-1.5">
+            <p className="text-[9px] font-bold text-stone-400 uppercase tracking-[0.15em]">{label}</p>
+            <h3 className="text-xl lg:text-2xl font-header font-semibold text-[#1a1a1a]">
+              {title ?? (label === "Read ahead" ? `${bookName} ${chapterNumber}` : bookName)}
+            </h3>
+          </div>
+          <div
+            className={cn(
+              "h-9 w-9 shrink-0 rounded-full border border-stone-200 flex items-center justify-center transition-all",
+              readingProgress[bookName]?.[chapterNumber]
+                ? "bg-bible-red border-bible-red shadow-[0_2px_8px_rgba(166,40,40,0.3)]"
+                : "hover:border-stone-300"
+            )}
+          >
+            {readingProgress[bookName]?.[chapterNumber] && (
+              <div className="h-2.5 w-2.5 bg-white rounded-full" />
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Header: one context line — Day + date (left), progress (right). Greeting lives in AppLayout above. */}
+      <div className="space-y-5 lg:max-w-5xl lg:mx-auto">
+        {/* Header: Day + date (left), progress on mobile only (desktop shows in sidebar) */}
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <div className="flex items-baseline gap-2 min-w-0">
             <span className="text-bible-red font-bold tracking-[0.2em] text-[10px] uppercase shrink-0">
               Day {currentDay}
             </span>
             <span className="text-stone-500 font-normal select-none shrink-0" aria-hidden>·</span>
-            <time className="font-header font-medium text-base text-ink truncate" dateTime={new Date().toISOString().slice(0, 10)}>
+            <time
+              className="font-header font-medium text-base text-ink truncate"
+              dateTime={new Date().toISOString().slice(0, 10)}
+            >
               {format(new Date(), "EEE, MMMM d")}
             </time>
           </div>
-          <p className="text-stone-400 text-[13px] font-medium whitespace-nowrap shrink-0">
+          <p className="text-stone-400 text-[13px] font-medium whitespace-nowrap shrink-0 lg:hidden">
             {completionStats.completed} / 1189 Read
           </p>
         </div>
 
-        <div className="space-y-4 pt-1">
-          {loading ? (
-            <div className="py-12 text-center text-stone-400 font-medium">Loading your progress...</div>
-          ) : (
-            <>
-              {todaysChapters.map(({ bookName, chapterNumber }, idx) => (
-                <div key={`${bookName}-${chapterNumber}`} className="relative">
-                  <Card className="border-none shadow-[0_2px_15px_rgba(0,0,0,0.04)] bg-paper rounded-[1.75rem] overflow-hidden">
-                    <CardContent className="p-4 sm:p-6 md:p-7">
-                      <div className="flex justify-between items-center">
-                        <div className="space-y-1.5">
-                          <p className="text-[9px] font-bold text-stone-400 uppercase tracking-[0.15em]">Chapter {chapterNumber}</p>
-                          <h3 className="text-2xl font-header font-semibold text-[#1a1a1a]">{bookName}</h3>
-                        </div>
-                        <div 
-                          className={cn(
-                            "h-9 w-9 rounded-full border border-stone-200 flex items-center justify-center transition-all cursor-pointer",
-                            readingProgress[bookName]?.[chapterNumber] 
-                              ? "bg-bible-red border-bible-red shadow-[0_2px_8px_rgba(166,40,40,0.3)]" 
-                              : "hover:border-stone-300"
-                          )}
-                          onClick={() => handleCheckboxChange(bookName, chapterNumber, !readingProgress[bookName]?.[chapterNumber])}
-                        >
-                          {readingProgress[bookName]?.[chapterNumber] && (
-                            <div className="h-2.5 w-2.5 bg-white rounded-full" />
-                          )}
-                        </div>
+        {loading ? (
+          <div className="py-12 text-center text-stone-400 font-medium">Loading your progress...</div>
+        ) : (
+          <div className="lg:grid lg:grid-cols-[1fr_280px] lg:gap-6 lg:items-start">
+            {/* Left: today's chapters — stack on mobile, 2x2 grid on desktop */}
+            <div className="space-y-4 pt-1 lg:pt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
+                {todaysChapters.map(({ bookName, chapterNumber }) => (
+                  <div key={`${bookName}-${chapterNumber}`} className="relative">
+                    {chapterCard(
+                      bookName,
+                      chapterNumber,
+                      `Chapter ${chapterNumber}`,
+                      () =>
+                        handleCheckboxChange(
+                          bookName,
+                          chapterNumber,
+                          !readingProgress[bookName]?.[chapterNumber]
+                        )
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Completion + Read ahead: on mobile stay in flow; on desktop move to sidebar */}
+              <div className="lg:hidden space-y-4 pt-2">
+                {allTodayCompleted && (
+                  <>
+                    <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 sm:px-5 sm:py-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-emerald-100 dark:border-emerald-900/50">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                        <CheckCircle2 className="h-5 w-5" />
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
+                      <p className="font-medium text-emerald-800 dark:text-emerald-200">
+                        All readings completed for today!
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 py-1">
+                      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-200 to-transparent" />
+                      <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                        Continue reading
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-200 to-transparent" />
+                    </div>
+                    {readAheadChapter && (
+                      <div className="space-y-4">
+                        {chapterCard(
+                          readAheadChapter.bookName,
+                          readAheadChapter.chapterNumber,
+                          "Read ahead",
+                          () =>
+                            handleCheckboxChange(
+                              readAheadChapter!.bookName,
+                              readAheadChapter!.chapterNumber,
+                              !readingProgress[readAheadChapter!.bookName]?.[readAheadChapter!.chapterNumber]
+                            )
+                        )}
+                        {readingProgress[readAheadChapter.bookName]?.[readAheadChapter.chapterNumber] &&
+                          readAheadNextChapter &&
+                          chapterCard(
+                            readAheadNextChapter.bookName,
+                            readAheadNextChapter.chapterNumber,
+                            "Read ahead",
+                            () =>
+                              handleCheckboxChange(
+                                readAheadNextChapter!.bookName,
+                                readAheadNextChapter!.chapterNumber,
+                                !readingProgress[readAheadNextChapter!.bookName]?.[
+                                  readAheadNextChapter!.chapterNumber
+                                ]
+                              )
+                          )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop right sidebar: progress, completion, read ahead */}
+            <div className="hidden lg:block space-y-5 sticky top-6">
+              <Card className="border border-stone-200 dark:border-stone-800 bg-paper rounded-2xl overflow-hidden">
+                <CardContent className="p-5">
+                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                    Overall progress
+                  </p>
+                  <p className="text-2xl font-bold text-ink">
+                    {completionStats.completed}
+                    <span className="text-stone-400 font-normal text-base"> / 1189</span>
+                  </p>
+                  <Progress value={(completionStats.completed / 1189) * 100} className="h-2 mt-3" />
+                </CardContent>
+              </Card>
 
               {allTodayCompleted && (
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 sm:px-5 sm:py-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-emerald-100 dark:border-emerald-900/50">
+                <>
+                  <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 border border-emerald-100 dark:border-emerald-900/50">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
                       <CheckCircle2 className="h-5 w-5" />
                     </div>
-                    <p className="font-medium text-emerald-800 dark:text-emerald-200">All readings completed for today!</p>
+                    <p className="font-medium text-emerald-800 dark:text-emerald-200 text-sm">
+                      All readings completed for today!
+                    </p>
                   </div>
-
-                  <div className="flex items-center gap-3 py-1">
-                    <span className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-200 to-transparent" />
-                    <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
                       Continue reading
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-200 to-transparent" />
-                  </div>
-
-                  {readAheadChapter && (
-                    <div className="space-y-4">
-                      <Card
-                        className="border-none shadow-[0_2px_15px_rgba(0,0,0,0.04)] bg-paper rounded-[1.75rem] overflow-hidden cursor-pointer transition-opacity hover:opacity-90"
-                        onClick={() => handleCheckboxChange(
+                    </p>
+                    <div className="space-y-3">
+                      {readAheadChapter &&
+                        chapterCard(
                           readAheadChapter.bookName,
                           readAheadChapter.chapterNumber,
-                          !readingProgress[readAheadChapter.bookName]?.[readAheadChapter.chapterNumber]
+                          "Read ahead",
+                          () =>
+                            handleCheckboxChange(
+                              readAheadChapter.bookName,
+                              readAheadChapter.chapterNumber,
+                              !readingProgress[readAheadChapter.bookName]?.[readAheadChapter.chapterNumber]
+                            )
                         )}
-                      >
-                        <CardContent className="p-4 sm:p-6 md:p-7">
-                          <div className="flex justify-between items-center">
-                            <div className="space-y-1.5">
-                              <p className="text-[9px] font-bold text-stone-400 uppercase tracking-[0.15em]">Read ahead</p>
-                              <h3 className="text-2xl font-header font-semibold text-[#1a1a1a]">
-                                {readAheadChapter.bookName} {readAheadChapter.chapterNumber}
-                              </h3>
-                            </div>
-                            <div
-                              className={cn(
-                                "h-9 w-9 rounded-full border border-stone-200 flex items-center justify-center transition-all cursor-pointer",
-                                readingProgress[readAheadChapter.bookName]?.[readAheadChapter.chapterNumber]
-                                  ? "bg-bible-red border-bible-red shadow-[0_2px_8px_rgba(166,40,40,0.3)]"
-                                  : "hover:border-stone-300"
-                              )}
-                            >
-                              {readingProgress[readAheadChapter.bookName]?.[readAheadChapter.chapterNumber] && (
-                                <div className="h-2.5 w-2.5 bg-white rounded-full" />
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {readingProgress[readAheadChapter.bookName]?.[readAheadChapter.chapterNumber] && readAheadNextChapter && (
-                        <Card
-                          className="border-none shadow-[0_2px_15px_rgba(0,0,0,0.04)] bg-paper rounded-[1.75rem] overflow-hidden cursor-pointer transition-opacity hover:opacity-90"
-                          onClick={() => handleCheckboxChange(
-                            readAheadNextChapter.bookName,
-                            readAheadNextChapter.chapterNumber,
-                            !readingProgress[readAheadNextChapter.bookName]?.[readAheadNextChapter.chapterNumber]
-                          )}
-                        >
-                          <CardContent className="p-4 sm:p-6 md:p-7">
-                            <div className="flex justify-between items-center">
-                              <div className="space-y-1.5">
-                                <p className="text-[9px] font-bold text-stone-400 uppercase tracking-[0.15em]">Read ahead</p>
-                                <h3 className="text-2xl font-header font-semibold text-[#1a1a1a]">
-                                  {readAheadNextChapter.bookName} {readAheadNextChapter.chapterNumber}
-                                </h3>
-                              </div>
-                              <div
-                                className={cn(
-                                  "h-9 w-9 rounded-full border border-stone-200 flex items-center justify-center transition-all cursor-pointer",
-                                  readingProgress[readAheadNextChapter.bookName]?.[readAheadNextChapter.chapterNumber]
-                                    ? "bg-bible-red border-bible-red shadow-[0_2px_8px_rgba(166,40,40,0.3)]"
-                                    : "hover:border-stone-300"
-                                )}
-                              >
-                                {readingProgress[readAheadNextChapter.bookName]?.[readAheadNextChapter.chapterNumber] && (
-                                  <div className="h-2.5 w-2.5 bg-white rounded-full" />
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
+                      {readAheadChapter &&
+                        readingProgress[readAheadChapter.bookName]?.[readAheadChapter.chapterNumber] &&
+                        readAheadNextChapter &&
+                        chapterCard(
+                          readAheadNextChapter.bookName,
+                          readAheadNextChapter.chapterNumber,
+                          "Read ahead",
+                          () =>
+                            handleCheckboxChange(
+                              readAheadNextChapter.bookName,
+                              readAheadNextChapter.chapterNumber,
+                              !readingProgress[readAheadNextChapter.bookName]?.[
+                                readAheadNextChapter.chapterNumber
+                              ]
+                            )
+                        )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                </>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

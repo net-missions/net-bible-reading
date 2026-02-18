@@ -1,13 +1,8 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Book, Calendar, BarChart, Settings, User, LogOut, Moon, Sun } from "lucide-react";
+import { Book, Calendar, BarChart, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 type NavLink = { name: string; path: string; icon: React.ReactNode };
 
@@ -19,8 +14,7 @@ function getTimeGreeting(): string {
 }
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { logout, profile, isAdmin } = useAuth();
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,28 +33,61 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background pb-24">
-      <main className="flex-1 w-full max-w-lg mx-auto pt-4 pb-8 px-4 sm:px-6 sm:pt-5 min-w-0">
-        <p className="text-foreground text-lg font-semibold tracking-tight mb-1.5 sm:text-xl">
+    <div className="flex flex-col min-h-screen bg-background pb-24 lg:pb-0 lg:flex-row">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-56 lg:border-r lg:border-stone-200 lg:bg-paper/80 lg:dark:border-stone-800 lg:dark:bg-stone-900/50">
+        <div className="flex flex-col flex-1 pt-6 pb-4">
+          <div className="px-5 mb-6">
+            <p className="text-foreground text-sm font-semibold tracking-tight">{greeting},</p>
+            <p className="text-foreground text-lg font-bold truncate">{displayName}</p>
+          </div>
+          <nav className="flex-1 px-3 space-y-0.5">
+            {desktopLinks.map((link) => {
+              const active = isActive(link.path);
+              return (
+                <button
+                  key={link.path}
+                  onClick={() => navigate(link.path)}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                    active
+                      ? "bg-bible-red text-white shadow-sm"
+                      : "text-stone-600 hover:bg-stone-100 hover:text-ink dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+                  )}
+                >
+                  {link.icon}
+                  <span>{link.name}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </aside>
+
+      {/* Main content: narrow on mobile, constrained on desktop with sidebar offset */}
+      <main className="flex-1 w-full max-w-lg mx-auto pt-4 pb-8 px-4 sm:px-6 sm:pt-5 min-w-0 lg:max-w-none lg:pl-[14rem] lg:pr-6 lg:pt-6 lg:pb-8">
+        {/* Mobile-only greeting */}
+        <p className="text-foreground text-lg font-semibold tracking-tight mb-1.5 sm:text-xl lg:sr-only">
           {greeting}, {displayName}
         </p>
         {children}
       </main>
-      
-      <nav className="fixed left-1/2 -translate-x-1/2 bg-stone-900 rounded-full px-2 py-2 shadow-2xl z-50 flex items-center gap-1 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-6">
+
+      {/* Mobile bottom nav */}
+      <nav className="fixed left-1/2 -translate-x-1/2 bg-stone-900 rounded-full px-2 py-2 shadow-2xl z-50 flex items-center gap-1 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-6 lg:hidden">
         {navLinks.map((link) => {
           const active = isActive(link.path);
           return (
-            <button 
-              key={link.path} 
-              onClick={() => navigate(link.path)} 
+            <button
+              key={link.path}
+              onClick={() => navigate(link.path)}
               className={cn(
                 "flex items-center justify-center p-3 rounded-full transition-all",
                 active ? "bg-stone-800 text-white shadow-lg scale-105" : "text-stone-400 hover:text-white"
               )}
             >
-              {React.cloneElement(link.icon as React.ReactElement, { 
-                className: cn("h-5 w-5", active ? "text-white" : "text-stone-400") 
+              {React.cloneElement(link.icon as React.ReactElement, {
+                className: cn("h-5 w-5", active ? "text-white" : "text-stone-400"),
               })}
             </button>
           );
