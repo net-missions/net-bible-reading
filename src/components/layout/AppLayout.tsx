@@ -20,6 +20,8 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const greeting = getTimeGreeting();
   const displayName = profile?.first_name?.trim() || "there";
+  const showGreeting = location.pathname !== "/statistics" && location.pathname !== "/history";
+  const isHistoryOrStats = location.pathname === "/history" || location.pathname === "/statistics";
 
   const navLinks: NavLink[] = [
     { name: "Reading", path: "/checklist", icon: <Book className="h-5 w-5" /> },
@@ -37,6 +39,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-56 lg:border-r lg:border-stone-200 lg:bg-paper/80 lg:dark:border-stone-800 lg:dark:bg-stone-900/50">
         <div className="flex flex-col flex-1 pt-6 pb-4">
+          {/* Desktop: always show greeting in sidebar for all tabs */}
           <div className="px-5 mb-6">
             <p className="text-foreground text-sm font-semibold tracking-tight">{greeting},</p>
             <p className="text-foreground text-lg font-bold truncate">{displayName}</p>
@@ -65,11 +68,17 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </aside>
 
       {/* Main content: narrow on mobile, constrained on desktop with sidebar offset */}
-      <main className="flex-1 w-full max-w-lg mx-auto pt-4 pb-8 px-4 sm:px-6 sm:pt-5 min-w-0 lg:max-w-none lg:pl-[14rem] lg:pr-6 lg:pt-6 lg:pb-8">
-        {/* Mobile-only greeting */}
-        <p className="text-foreground text-lg font-semibold tracking-tight mb-1.5 sm:text-xl lg:sr-only">
-          {greeting}, {displayName}
-        </p>
+      <main
+        className={cn(
+          "flex-1 w-full max-w-lg mx-auto pt-4 pb-8 px-4 sm:px-6 sm:pt-5 min-w-0 lg:max-w-none lg:pt-6 lg:pb-8",
+          isHistoryOrStats ? "lg:pl-[15rem] lg:pr-10" : "lg:pl-[14rem] lg:pr-6"
+        )}
+      >
+        {showGreeting && (
+          <p className="text-foreground text-lg font-semibold tracking-tight mb-1.5 sm:text-xl lg:sr-only">
+            {greeting}, {displayName}
+          </p>
+        )}
         {children}
       </main>
 

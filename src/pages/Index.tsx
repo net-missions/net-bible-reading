@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import Logo from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
@@ -24,8 +23,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <Logo size="lg" className="animate-pulse mb-4" />
-      <h1 className="text-2xl font-bold mb-2">Net Missions Fellowship</h1>
+      <h1 className="text-2xl font-bold mb-4 text-red-500">Net Missions Fellowship</h1>
       {isLoading ? (
         <div className="flex items-center"><Loader2 className="h-4 w-4 mr-2 animate-spin" /><p className="text-muted-foreground text-sm">Loading...</p></div>
       ) : (

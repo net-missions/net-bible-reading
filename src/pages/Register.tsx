@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import Logo from "@/components/Logo";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const formSchema = z.object({
@@ -46,8 +45,7 @@ const Register = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <Logo className="mx-auto mb-2" />
-          <h1 className="text-2xl font-bold">Net Missions Fellowship</h1>
+          <h1 className="text-2xl font-bold text-red-500">Net Missions Fellowship</h1>
           <p className="text-muted-foreground mt-1 text-sm">Join the reading journey</p>
         </div>
 
