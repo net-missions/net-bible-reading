@@ -18,8 +18,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Book } from "lucide-react";
 
 const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  firstName: z.string().min(2, "First name is required"),
+  lastName: z.string().min(2, "Last name is required"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -30,45 +30,40 @@ const Login = () => {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { firstName: "", lastName: "" },
   });
 
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
-    await login(values.email, values.password);
+    await login(values.firstName, values.lastName);
     setIsSubmitting(false);
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Book className="h-12 w-12 text-primary mx-auto mb-2" />
-          <h1 className="text-3xl font-bold">Net Missions Fellowship</h1>
-          <p className="text-muted-foreground mt-2">Sign in to continue your reading journey</p>
+          <h1 className="text-2xl font-bold">Net Missions Fellowship</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Enter your name to continue</p>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your account
-            </CardDescription>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Sign In</CardTitle>
+            <CardDescription>Enter your name to access your reading progress</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="email"
+                  name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>First Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="you@example.com" {...field} />
+                        <Input placeholder="John" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -76,30 +71,26 @@ const Login = () => {
                 />
                 <FormField
                   control={form.control}
-                  name="password"
+                  name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>Last Name</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••" {...field} />
+                        <Input placeholder="Doe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button 
-                  type="submit"
-                  className="w-full"
-                  disabled={isSubmitting || isLoading}
-                >
+                <Button type="submit" className="w-full" disabled={isSubmitting || isLoading}>
                   {isSubmitting || isLoading ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
             </Form>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <div className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
+          <CardFooter>
+            <div className="text-center text-sm text-muted-foreground w-full">
+              New here?{" "}
               <Link to="/register" className="text-primary hover:underline">
                 Register
               </Link>

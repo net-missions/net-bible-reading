@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Session, User } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -12,133 +11,97 @@ export type Profile = {
   last_name: string;
 };
 
+const CURRENT_USER_KEY = "nmf_current_user_id";
+
 export const useSupabaseAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // If session changed, fetch user profile and role
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-            fetchUserRole(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-        fetchUserRole(session.user.id);
-      }
+    const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
+    if (savedUserId) {
+      loadUser(savedUserId);
+    } else {
       setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    }
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const loadUser = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles" as any)
+        .select("*")
+        .eq("id", userId)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      setProfile(null);
-    }
-  };
-
-  const fetchUserRole = async (userId: string) => {
-    try {
-      console.log('Fetching role for user:', userId);
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          console.log('No role found for user, defaulting to member');
-        } else {
-          console.error('Error fetching role:', error);
-        }
-        setRole("member");
-      } else {
-        console.log('Role fetched successfully:', data?.role);
-        setRole(data?.role || "member");
+      if (profileError || !profileData) {
+        localStorage.removeItem(CURRENT_USER_KEY);
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching role:', error);
-      setRole("member");
+
+      setProfile(profileData as any);
+
+      const { data: roleData } = await supabase
+        .from("user_roles" as any)
+        .select("role")
+        .eq("user_id", userId)
+        .single();
+
+      setRole(((roleData as any)?.role as UserRole) || "member");
+    } catch {
+      localStorage.removeItem(CURRENT_USER_KEY);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (firstName: string, lastName: string) => {
     setIsLoading(true);
-    
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Logged in successfully",
-        description: "Welcome back!",
-      });
-      
-      // Fetch the user's role for navigation
-      if (data.user) {
-        console.log("Login: user id:", data.user.id);
-        const { data: roleData, error: fetchRoleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.user.id)
-          .single();
-          
-        if (fetchRoleError && fetchRoleError.code !== 'PGRST116') throw fetchRoleError;
-        
-        const userRole = roleData?.role || "member";
-        console.log("Fetched role for navigation:", userRole);
-        
-        if (userRole === "admin") {
-          console.log("Navigating to /admin");
-          navigate("/admin");
-        } else {
-          console.log("Navigating to /checklist");
-          navigate("/checklist");
-        }
+      const { data, error } = await supabase
+        .from("profiles" as any)
+        .select("*")
+        .ilike("first_name", firstName.trim())
+        .ilike("last_name", lastName.trim())
+        .single();
+
+      if (error || !data) {
+        toast({
+          title: "Not found",
+          description: "No member found with that name. Please check your name or register.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const profile = data as any;
+      localStorage.setItem(CURRENT_USER_KEY, profile.id);
+      setProfile(profile);
+
+      const { data: roleData } = await supabase
+        .from("user_roles" as any)
+        .select("role")
+        .eq("user_id", profile.id)
+        .single();
+
+      const userRole = ((roleData as any)?.role as UserRole) || "member";
+      setRole(userRole);
+
+      toast({ title: "Welcome back!", description: `Hello, ${profile.first_name}!` });
+
+      if (userRole === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/checklist");
       }
     } catch (error: any) {
       toast({
         title: "Login failed",
-        description: error.message || "An unknown error occurred",
+        description: error.message || "An error occurred",
         variant: "destructive",
       });
     } finally {
@@ -146,68 +109,58 @@ export const useSupabaseAuth = () => {
     }
   };
 
-  const register = async (
-    email: string, 
-    password: string, 
-    firstName: string, 
-    lastName: string, 
-    userRole: UserRole = "member"
-  ) => {
+  const register = async (firstName: string, lastName: string, userRole: UserRole = "member") => {
     setIsLoading(true);
-    
     try {
-      // Register the user
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName
-          }
-        }
-      });
-      
-      if (error) throw error;
-      
-      // Create profile if user was created
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            first_name: firstName,
-            last_name: lastName
-          });
-        if (profileError) throw profileError;
+      // Check if name already exists
+      const { data: existing } = await supabase
+        .from("profiles" as any)
+        .select("id")
+        .ilike("first_name", firstName.trim())
+        .ilike("last_name", lastName.trim())
+        .single();
 
-        // Insert user role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: data.user.id,
-            role: userRole
-          });
-        if (roleError) throw roleError;
-
-        // Navigate based on role
-        if (userRole === "admin") {
-          console.log("Navigating to /admin");
-          navigate("/admin");
-        } else {
-          console.log("Navigating to /checklist");
-          navigate("/checklist");
-        }
+      if (existing) {
+        toast({
+          title: "Already registered",
+          description: "A member with that name already exists. Please sign in instead.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
       }
-      
-      toast({
-        title: "Success",
-        description: "Welcome to Net Missions Fellowship!",
-      });
+
+      const { data: newProfile, error: profileError } = await supabase
+        .from("profiles" as any)
+        .insert({ first_name: firstName.trim(), last_name: lastName.trim() } as any)
+        .select()
+        .single();
+
+      if (profileError || !newProfile) throw profileError || new Error("Failed to create profile");
+
+      const profile = newProfile as any;
+
+      const { error: roleError } = await supabase
+        .from("user_roles" as any)
+        .insert({ user_id: profile.id, role: userRole } as any);
+
+      if (roleError) throw roleError;
+
+      localStorage.setItem(CURRENT_USER_KEY, profile.id);
+      setProfile(profile);
+      setRole(userRole);
+
+      toast({ title: "Welcome!", description: `Welcome to Net Missions Fellowship, ${profile.first_name}!` });
+
+      if (userRole === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/checklist");
+      }
     } catch (error: any) {
       toast({
         title: "Registration failed",
-        description: error.message || "An unknown error occurred",
+        description: error.message || "An error occurred",
         variant: "destructive",
       });
     } finally {
@@ -216,67 +169,37 @@ export const useSupabaseAuth = () => {
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      toast({
-        title: "Sign out failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      setRole(null);
-      toast({
-        title: "Logged out successfully",
-      });
-      navigate("/login");
-    }
-  };
-
-  // Helper function to check if user is admin
-  const checkIsAdmin = (): boolean => {
-    return role === "admin";
+    localStorage.removeItem(CURRENT_USER_KEY);
+    setProfile(null);
+    setRole(null);
+    toast({ title: "Signed out" });
+    navigate("/login");
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return false;
-    
+    if (!profile) return false;
     try {
       const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
-      
+        .from("profiles" as any)
+        .update(updates as any)
+        .eq("id", profile.id);
+
       if (error) throw error;
-      
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
-      
-      toast({
-        title: "Profile updated successfully",
-      });
-      
+      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
+      toast({ title: "Profile updated" });
       return true;
     } catch (error: any) {
-      toast({
-        title: "Failed to update profile",
-        description: error.message,
-        variant: "destructive",
-      });
-      
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
       return false;
     }
   };
 
   return {
-    user,
-    session,
+    user: profile ? { id: profile.id } : null,
     profile,
     role,
-    isAdmin: checkIsAdmin(),
-    isAuthenticated: !!user,
+    isAdmin: role === "admin",
+    isAuthenticated: !!profile,
     isLoading,
     login,
     register,

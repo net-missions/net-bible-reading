@@ -7,19 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-
-// Get the Supabase URL from the client file
-// We need to look at the client.ts to find this
-const SUPABASE_URL = "https://pibjpeltpfqxicozdefd.supabase.co";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -29,179 +18,78 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const MemberManagement = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
-  
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-    },
+    defaultValues: { firstName: "", lastName: "" },
   });
 
   const onSubmit = async (values: FormValues) => {
-    if (!isAdmin) {
-      toast({
-        title: "Permission denied",
-        description: "You need admin privileges to add members.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+    if (!isAdmin) return;
     setIsSubmitting(true);
-    setDebugInfo(null);
-    
+
     try {
-      // Use a direct fetch call instead of supabase.functions.invoke
-      // This gives us more control over headers and error handling
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        throw new Error(`Session error: ${sessionError.message}`);
-      }
-      
-      if (!sessionData.session) {
-        throw new Error("No active session found. Please log in again.");
+      // Check if already exists
+      const { data: existing } = await supabase
+        .from("profiles" as any)
+        .select("id")
+        .ilike("first_name", values.firstName.trim())
+        .ilike("last_name", values.lastName.trim())
+        .single();
+
+      if (existing) {
+        toast({ title: "Already exists", description: "A member with that name already exists.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
       }
 
-      const token = sessionData.session.access_token;
-      setDebugInfo(`Using token: ${token.substring(0, 10)}...`);
-      
-      // Construct the API URL using the hardcoded Supabase URL
-      const apiUrl = `${SUPABASE_URL}/functions/v1/create-member`;
-      setDebugInfo(prev => `${prev}\nAPI URL: ${apiUrl}`);
-      
-      // Make a direct fetch to the Edge Function
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          firstName: values.firstName,
-          lastName: values.lastName
-        })
-      });
-      
-      // Log the raw response information before trying to parse JSON
-      const responseText = await response.text();
-      setDebugInfo(prev => `${prev}\nStatus: ${response.status}\nRaw response: ${responseText}`);
-      
-      // Only try to parse JSON if we have a response with content
-      let data;
-      if (responseText && responseText.trim()) {
-        try {
-          data = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error("JSON parse error:", parseError);
-          setDebugInfo(prev => `${prev}\nJSON parse error: ${parseError.message}`);
-          throw new Error(`Failed to parse response: ${parseError.message}`);
-        }
-      } else {
-        // Handle empty response
-        setDebugInfo(prev => `${prev}\nEmpty response received`);
-        throw new Error("Empty response from server");
-      }
-      
-      // Handle response status
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${data?.error || 'Unknown error'}`);
-      }
-      
-      // Generate email for display in the success message
-      const email = `${values.firstName.toLowerCase()}@netmissions.com`;
-      
-      toast({
-        title: "Member added successfully",
-        description: `${values.firstName} ${values.lastName} has been added as a member.\n\nCredentials:\nUsername/Email: ${email}\nPassword: ${values.lastName}`,
-      });
-      
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles" as any)
+        .insert({ first_name: values.firstName.trim(), last_name: values.lastName.trim() } as any)
+        .select()
+        .single();
+
+      if (pErr || !profile) throw pErr || new Error("Failed");
+
+      const { error: rErr } = await supabase
+        .from("user_roles" as any)
+        .insert({ user_id: (profile as any).id, role: "member" } as any);
+
+      if (rErr) throw rErr;
+
+      toast({ title: "Member added", description: `${values.firstName} ${values.lastName} has been added.` });
       form.reset();
-      setDebugInfo(null);
     } catch (error: any) {
-      console.error("Add member error:", error);
-      const errorMsg = error.message || "An unknown error occurred";
-      setDebugInfo(prev => `${prev}\nError: ${errorMsg}`);
-      
-      toast({
-        title: "Failed to add member",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!isAdmin) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Permission Denied</CardTitle>
-          <CardDescription>You need admin privileges to access this feature.</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
+  if (!isAdmin) return null;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Add New Member</CardTitle>
-        <CardDescription>Create new accounts for congregation members</CardDescription>
+        <CardDescription>Add a member by entering their name</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Smith" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField control={form.control} name="firstName" render={({ field }) => (
+                <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="lastName" render={({ field }) => (
+                <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Smith" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
             </div>
-            
-            <div className="mt-2">
-              <p className="text-sm text-muted-foreground">
-                The member's email will be generated automatically using their name.
-                The first name will be used as username and the last name as password.
-              </p>
-            </div>
-            
-            <Button type="submit" disabled={isSubmitting} className="mt-4 w-full sm:w-auto">
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
               {isSubmitting ? "Adding..." : "Add Member"}
             </Button>
-            
-            {debugInfo && (
-              <div className="mt-4 p-3 bg-muted rounded text-xs font-mono whitespace-pre-wrap">
-                {debugInfo}
-              </div>
-            )}
           </form>
         </Form>
       </CardContent>
