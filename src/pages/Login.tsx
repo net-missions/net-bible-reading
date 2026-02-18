@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Book } from "lucide-react";
+import Logo from "@/components/Logo";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "First name is required"),
@@ -43,7 +43,7 @@ const Login = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <Book className="h-12 w-12 text-primary mx-auto mb-2" />
+          <Logo className="mx-auto mb-2" />
           <h1 className="text-2xl font-bold">Net Missions Fellowship</h1>
           <p className="text-muted-foreground mt-1 text-sm">Enter your name to continue</p>
         </div>

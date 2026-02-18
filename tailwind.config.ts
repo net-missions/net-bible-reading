@@ -53,16 +53,23 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				paper: "#FDFCF8",
+				ink: "#1C1917",
+				"bible-red": "#A62828",
+				"bible-red-light": "#FEF2F2",
+				"bible-gold": "#B45309",
+				"stone-100": "#F5F5F4",
+				"stone-900": "#1C1917",
 				scripture: {
-					DEFAULT: '#C43A31',
-					light: '#FFE6E6',
-					dark: '#2A1215',
+					DEFAULT: '#A62828',
+					light: '#FEF2F2',
+					dark: '#1C1917',
 				}
 			},
 			borderRadius: {
-				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				lg: '1.25rem',
+				md: '1rem',
+				sm: '0.75rem'
 			},
 			keyframes: {
 				'accordion-down': {
@@ -79,8 +86,9 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out'
 			},
 			fontFamily: {
-				serif: ['Merriweather', 'serif'],
-				sans: ['Inter', 'sans-serif'],
+				serif: ['var(--font-serif)', 'system-ui', 'sans-serif'],
+				header: ['var(--font-serif)', 'system-ui', 'sans-serif'],
+				sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
 			},
 		}
 	},

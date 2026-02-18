@@ -1,5 +1,5 @@
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap');
+/* Load fonts early – also linked in index.html */
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,35 +7,37 @@
 
 @layer base {
   :root {
-    --background: 0 33% 99%;
-    --foreground: 0 10% 3.9%;
+    --font-sans: 'Google Sans Flex', system-ui, sans-serif;
+    --font-serif: 'Google Sans Flex', system-ui, sans-serif;
+    --background: 60 5% 96%; /* Stone 100 */
+    --foreground: 20 10% 10%; /* Ink */
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 10% 3.9%;
+    --card: 50 44% 99%; /* Paper */
+    --card-foreground: 20 10% 10%; /* Ink */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 10% 3.9%;
+    --popover: 50 44% 99%;
+    --popover-foreground: 20 10% 10%;
 
-    --primary: 0 70% 50%; 
+    --primary: 0 61% 41%; /* Bible Red */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 5% 96%;
-    --secondary-foreground: 0 6% 10%;
+    --secondary: 60 5% 90%;
+    --secondary-foreground: 20 10% 10%;
 
-    --muted: 0 5% 96%;
-    --muted-foreground: 0 4% 46%;
+    --muted: 60 5% 90%;
+    --muted-foreground: 20 10% 40%;
 
-    --accent: 0 83% 58%;
+    --accent: 0 61% 41%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 5% 90%;
-    --input: 0 5% 90%;
-    --ring: 0 83% 58%;
+    --border: 60 5% 85%;
+    --input: 60 5% 85%;
+    --ring: 0 61% 41%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
@@ -75,24 +77,38 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    font-family: var(--font-sans);
+    @apply bg-background text-foreground;
   }
 
+  /* Google Sans Flex: headings, book names, scripture */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-serif;
+    font-family: var(--font-sans) !important;
+    font-variant-numeric: lining-nums;
+    -webkit-font-feature-settings: "lnum";
+    font-feature-settings: "lnum";
   }
-  
+
+  .font-serif,
+  .font-header {
+    font-family: var(--font-sans) !important;
+    font-variant-numeric: lining-nums;
+    -webkit-font-feature-settings: "lnum";
+    font-feature-settings: "lnum";
+  }
+
   .scripture-text {
     @apply font-serif text-lg leading-relaxed;
+    font-variant-numeric: lining-nums;
   }
 }
 
 @layer components {
   .bible-card {
-    @apply rounded-lg border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md;
+    @apply rounded-[2rem] border-none bg-card p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)];
   }
   
   .verse-number {
-    @apply text-xs align-super text-muted-foreground mr-1;
+    @apply text-xs align-super text-stone-400 mr-1;
   }
 }

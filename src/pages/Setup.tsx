@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Book, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import Logo from "@/components/Logo";
 import { toast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
@@ -75,7 +76,7 @@ const Setup = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <Book className="h-12 w-12 text-primary mx-auto mb-2" />
+          <Logo className="mx-auto mb-2" />
           <h1 className="text-2xl font-bold">Net Missions Fellowship</h1>
           <p className="text-muted-foreground mt-1 text-sm">First-time setup</p>
         </div>

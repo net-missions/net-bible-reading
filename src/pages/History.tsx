@@ -6,190 +6,141 @@ import AppLayout from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { bibleBooks } from "@/services/bibleService";
 
 const History = () => {
-  const { user } = useAuth();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [monthReadings, setMonthReadings] = useState<Record<string, number>>({});
+  const { user, profile } = useAuth();
+  const [bibleProgress, setBibleProgress] = useState<Record<string, number>>({});
+  const [fullProgress, setFullProgress] = useState<Record<string, Record<number, boolean>>>({});
+  const [expandedBooks, setExpandedBooks] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
-  
-  useEffect(() => {
-    const fetchMonthReadings = async () => {
-      if (user) {
-        setIsLoading(true);
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        
-        // Get initial empty state for the month
-        const readings = getMonthReadings(user.id, year, month);
-        setMonthReadings(readings);
-        setIsLoading(false);
+
+  const fetchProgress = async (silent = false) => {
+    if (!user?.id) return;
+    if (!silent) setIsLoading(true);
+    try {
+      const { data } = await supabase
+        .from("reading_progress" as any)
+        .select("book, chapter")
+        .eq("user_id", user.id)
+        .eq("completed", true);
+      
+      const counts: Record<string, number> = {};
+      const full: Record<string, Record<number, boolean>> = {};
+
+      if (data) {
+        (data as any[]).forEach(item => {
+          counts[item.book] = (counts[item.book] || 0) + 1;
+          if (!full[item.book]) full[item.book] = {};
+          full[item.book][item.chapter] = true;
+        });
       }
-    };
-    
-    fetchMonthReadings();
-  }, [user, currentDate]);
-  
-  const navigateMonth = (direction: "prev" | "next") => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      if (direction === "prev") {
-        newDate.setMonth(newDate.getMonth() - 1);
-      } else {
-        newDate.setMonth(newDate.getMonth() + 1);
-      }
-      return newDate;
-    });
-  };
-  
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  
-  // Create an array of week rows
-  const weeks = [] as Array<Date[]>;
-  let week = [] as Date[];
-  
-  // Add dummy days for the start of the first week
-  const firstDayOfWeek = monthStart.getDay();
-  for (let i = 0; i < firstDayOfWeek; i++) {
-    week.push(new Date(0)); // placeholder
-  }
-  
-  // Add the actual days
-  days.forEach(day => {
-    if (week.length === 7) {
-      weeks.push(week);
-      week = [];
+      setBibleProgress(counts);
+      setFullProgress(full);
+    } catch (error) {
+      console.error("Error fetching progress:", error);
+    } finally {
+      if (!silent) setIsLoading(false);
     }
-    week.push(day);
-  });
-  
-  // Add dummy days for the end of the last week
-  while (week.length < 7 && week.length > 0) {
-    week.push(new Date(0)); // placeholder
-  }
-  
-  if (week.length > 0) {
-    weeks.push(week);
-  }
-  
-  const getColorForCompletionCount = (count: number) => {
-    if (count === 0) return "bg-muted hover:bg-muted";
-    if (count === 1) return "bg-accent/30 hover:bg-accent/40";
-    if (count === 2) return "bg-accent/60 hover:bg-accent/70";
-    if (count === 3) return "bg-accent hover:bg-accent/90";
-    return "bg-muted hover:bg-muted";
   };
-  
+
+  useEffect(() => {
+    fetchProgress();
+  }, [user]);
+
+  const handleChapterToggle = async (book: string, chapter: number) => {
+    if (!user?.id) return;
+    const isCompleted = fullProgress[book]?.[chapter] || false;
+    const { error } = await supabase
+      .from("reading_progress" as any)
+      .upsert({
+        user_id: user.id,
+        book,
+        chapter,
+        completed: !isCompleted,
+        completed_at: !isCompleted ? new Date().toISOString() : null
+      }, { onConflict: "user_id,book,chapter" });
+
+    if (!error) {
+      fetchProgress(true);
+    }
+  };
+
   return (
     <AppLayout>
-      <div className="space-y-4 sm:space-y-6">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:justify-between sm:items-center">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Reading History</h1>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9"
-              onClick={() => navigateMonth("prev")}
-            >
-              <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Button>
-            <span className="text-sm sm:text-base md:text-lg font-medium">
-              {format(currentDate, "MMMM yyyy")}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9"
-              onClick={() => navigateMonth("next")}
-            >
-              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Button>
-          </div>
-        </div>
-        
-        <Card className="shadow-sm border-none">
-          <CardHeader className="pb-2 sm:pb-4">
-            <CardTitle className="flex items-center text-base sm:text-lg">
-              <Calendar className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-              Monthly Reading Calendar
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="w-full max-w-3xl mx-auto">
-              {/* Calendar header */}
-              <div className="grid grid-cols-7 text-center font-medium mb-2">
-                {["S", "M", "T", "W", "T", "F", "S"].map((day, idx) => (
-                  <div key={day + idx} className="py-1 sm:py-2 text-xs sm:text-sm">
-                    {window.innerWidth > 400 ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][idx] : day}
-                  </div>
-                ))}
-              </div>
+      <div className="space-y-8">
+        <h1 className="text-4xl font-header font-semibold text-ink">Scripture</h1>
+
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="py-12 text-center text-stone-400 font-medium">Loading scripture...</div>
+          ) : (
+            bibleBooks.map((book) => {
+              const completedCount = bibleProgress[book.name] || 0;
+              const isExpanded = expandedBooks[book.name];
               
-              {/* Calendar grid */}
-              <div className={`grid grid-cols-7 gap-0.5 sm:gap-1 ${isLoading ? 'opacity-50' : ''}`}>
-                {weeks.flatMap(week =>
-                  week.map((day, dayIndex) => {
-                    const dateStr = day.getTime() === 0 ? "" : format(day, "yyyy-MM-dd");
-                    const completionCount = dateStr ? (monthReadings[dateStr] || 0) : 0;
-                    const isValid = day.getTime() !== 0 && isSameMonth(day, currentDate);
-                    
-                    return (
-                      <div
-                        key={`${dateStr || `empty-${dayIndex}`}`}
-                        className={cn(
-                          "aspect-square flex flex-col items-center justify-center rounded-md relative",
-                          isValid
-                            ? getColorForCompletionCount(completionCount)
-                            : "bg-transparent"
-                        )}
-                      >
-                        {isValid && (
-                          <>
-                            <span className="text-xs sm:text-sm">{format(day, "d")}</span>
-                            {completionCount > 0 && (
-                              <span className="text-[10px] sm:text-xs mt-0.5 sm:mt-1">
-                                {completionCount}/3
-                              </span>
-                            )}
-                          </>
-                        )}
+              return (
+                <div key={book.name} className="space-y-2">
+                  <Card 
+                    onClick={() => setExpandedBooks(prev => ({ ...prev, [book.name]: !isExpanded }))}
+                    className={cn(
+                      "border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-[1.25rem] overflow-hidden group hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all cursor-pointer",
+                      isExpanded && "shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
+                    )}
+                  >
+                    <CardContent className="p-0 flex items-center">
+                      <div className={cn(
+                        "w-1.5 h-12 m-4 rounded-full transition-colors",
+                        completedCount > 0 ? "bg-bible-red/40" : "bg-stone-50 group-hover:bg-bible-red/10"
+                      )} />
+                      <div className="flex-1 py-6 flex lg:items-center justify-between pr-6">
+                        <span className="text-xl font-header font-medium text-ink">{book.name}</span>
+                        <div className="flex items-center gap-4">
+                          <div className="bg-stone-50 px-3 py-1 rounded-full text-[10px] font-bold text-stone-400">
+                            {completedCount} / {book.chapters}
+                          </div>
+                          <ChevronRight className={cn(
+                            "h-5 w-5 text-stone-300 transition-transform",
+                            isExpanded && "rotate-90"
+                          )} />
+                        </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-              
-              {/* Legend */}
-              <div className="mt-4 sm:mt-6 flex justify-center flex-wrap">
-                <div className="inline-flex flex-wrap justify-center gap-2 sm:gap-4">
-                  <div className="flex items-center">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-muted rounded mr-1 sm:mr-2"></div>
-                    <span className="text-xs sm:text-sm">0 chapters</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-accent/30 rounded mr-1 sm:mr-2"></div>
-                    <span className="text-xs sm:text-sm">1 chapter</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-accent/60 rounded mr-1 sm:mr-2"></div>
-                    <span className="text-xs sm:text-sm">2 chapters</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-accent rounded mr-1 sm:mr-2"></div>
-                    <span className="text-xs sm:text-sm">3 chapters</span>
-                  </div>
+                    </CardContent>
+                  </Card>
+
+                  {isExpanded && (
+                    <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-[1.25rem] p-6 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                        {Array.from({ length: book.chapters }, (_, i) => i + 1).map(chapter => {
+                          const isDone = fullProgress[book.name]?.[chapter];
+                          return (
+                            <button
+                              key={chapter}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleChapterToggle(book.name, chapter);
+                              }}
+                              className={cn(
+                                "aspect-square rounded-lg text-sm font-medium flex items-center justify-center border select-none outline-none focus:outline-none focus-visible:ring-0",
+                                isDone 
+                                  ? "bg-bible-red border-bible-red text-white shadow-sm" 
+                                  : "bg-white border-stone-100 text-stone-400 hover:border-bible-red/30"
+                              )}
+                            >
+                              {chapter}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  )}
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <div className="text-center text-xs sm:text-sm text-muted-foreground py-2 sm:py-4">
-          <p>"But grow in the grace and knowledge of our Lord and Savior Jesus Christ." - 2 Peter 3:18</p>
+              );
+            })
+          )}
         </div>
       </div>
     </AppLayout>
