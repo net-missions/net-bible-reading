@@ -1,6 +1,4 @@
 import { Suspense, useState, useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -75,8 +73,6 @@ const App = () => {
             <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm">Loading...</div>}>
               <AuthProvider>
                 <AppRoutes />
-                <Toaster />
-                <Sonner />
               </AuthProvider>
             </Suspense>
           </ThemeProvider>
