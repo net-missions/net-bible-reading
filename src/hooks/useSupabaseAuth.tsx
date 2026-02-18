@@ -91,8 +91,6 @@ export const useSupabaseAuth = () => {
       const userRole = ((roleData as any)?.role as UserRole) || "member";
       setRole(userRole);
 
-      toast({ title: "Welcome back!", description: `Hello, ${profile.first_name}!` });
-
       if (userRole === "admin") {
         navigate("/admin");
       } else {
