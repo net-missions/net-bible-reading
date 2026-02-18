@@ -17,8 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formSchema = z.object({
-  firstName: z.string().min(2, "First name is required"),
-  lastName: z.string().min(2, "Last name is required"),
+  firstName: z.string().min(2, "Kinahanglan ang pangalan"),
+  lastName: z.string().min(2, "Kinahanglan ang apelyido"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -43,13 +43,13 @@ const Login = () => {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-red-500">Net Missions Fellowship</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Enter your name to continue</p>
+          <p className="text-muted-foreground mt-1 text-sm">Isulat ang imong pangalan para magpadayon</p>
         </div>
 
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Sign In</CardTitle>
-            <CardDescription>Enter your name to access your reading progress</CardDescription>
+            <CardDescription>Isulat ang imong pangalan para makita ang imong progress</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -59,9 +59,9 @@ const Login = () => {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>Pangalan</FormLabel>
                       <FormControl>
-                        <Input placeholder="John" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -72,9 +72,9 @@ const Login = () => {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>Apelyido</FormLabel>
                       <FormControl>
-                        <Input placeholder="Doe" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -88,9 +88,9 @@ const Login = () => {
           </CardContent>
           <CardFooter>
             <div className="text-center text-sm text-muted-foreground w-full">
-              New here?{" "}
+              First time?{" "}
               <Link to="/register" className="text-primary hover:underline">
-                Register
+                Register sa dari
               </Link>
             </div>
           </CardFooter>

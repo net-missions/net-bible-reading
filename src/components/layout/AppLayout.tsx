@@ -18,9 +18,14 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const capitalizeName = (name: string): string => {
+    if (!name) return "";
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
   const greeting = getTimeGreeting();
-  const displayName = profile?.first_name?.trim() || "there";
-  const showGreeting = location.pathname !== "/statistics" && location.pathname !== "/history";
+  const displayName = profile?.first_name ? capitalizeName(profile.first_name.trim()) : "there";
+  const showGreeting = location.pathname !== "/statistics" && location.pathname !== "/history" && location.pathname !== "/admin";
   const isHistoryOrStats = location.pathname === "/history" || location.pathname === "/statistics";
 
   const navLinks: NavLink[] = [
@@ -82,18 +87,19 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {children}
       </main>
 
-      {/* Mobile bottom nav */}
-      <nav className="fixed left-1/2 -translate-x-1/2 bg-stone-900 rounded-full px-2 py-2 shadow-2xl z-50 flex items-center gap-1 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-6 lg:hidden">
-        {navLinks.map((link) => {
+      {/* Mobile bottom nav: same links as desktop so admins get Admin too */}
+      <nav className="fixed left-1/2 -translate-x-1/2 bg-stone-900 rounded-full px-2 py-2 shadow-2xl z-50 flex items-center gap-0.5 sm:gap-1 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-6 lg:hidden">
+        {desktopLinks.map((link) => {
           const active = isActive(link.path);
           return (
             <button
               key={link.path}
               onClick={() => navigate(link.path)}
               className={cn(
-                "flex items-center justify-center p-3 rounded-full transition-all",
+                "flex items-center justify-center p-2.5 sm:p-3 rounded-full transition-all min-w-[44px] min-h-[44px]",
                 active ? "bg-stone-800 text-white shadow-lg scale-105" : "text-stone-400 hover:text-white"
               )}
+              aria-label={link.name}
             >
               {React.cloneElement(link.icon as React.ReactElement, {
                 className: cn("h-5 w-5", active ? "text-white" : "text-stone-400"),

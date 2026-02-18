@@ -66,9 +66,9 @@ const Statistics = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-4xl font-header font-semibold text-ink">Your Journey</h1>
+      <div className="space-y-6 sm:space-y-8">
+        <div className="flex justify-between items-center gap-2 min-w-0">
+          <h1 className="text-2xl sm:text-4xl font-header font-semibold text-ink truncate">Your Journey</h1>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -91,9 +91,9 @@ const Statistics = () => {
           </DropdownMenu>
         </div>
 
-        <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.05)] bg-paper rounded-[2.5rem] p-12 flex flex-col items-center justify-center text-center space-y-6">
-          <div className="relative h-48 w-48 flex items-center justify-center">
-            <svg className="h-full w-full rotate-[-90deg]">
+        <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.05)] bg-paper rounded-2xl sm:rounded-[2.5rem] p-6 sm:p-12 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6">
+          <div className="relative h-36 w-36 sm:h-48 sm:w-48 flex items-center justify-center">
+            <svg className="h-full w-full rotate-[-90deg]" viewBox="0 0 192 192" preserveAspectRatio="xMidYMid meet">
               <circle
                 cx="96"
                 cy="96"
@@ -116,14 +116,14 @@ const Statistics = () => {
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-6xl font-header font-semibold text-ink">{stats.completionRate}%</span>
+              <span className="text-4xl sm:text-6xl font-header font-semibold text-ink">{stats.completionRate}%</span>
             </div>
           </div>
           <p className="text-stone-400 font-bold uppercase tracking-widest text-xs">Bible Completed</p>
         </Card>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-[2rem] p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-xl sm:rounded-[2rem] p-4 sm:p-6 space-y-3 sm:space-y-4">
             <div className="h-10 w-10 rounded-xl bg-stone-50 flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-stone-300" />
             </div>
@@ -133,18 +133,18 @@ const Statistics = () => {
             </div>
           </Card>
 
-          <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-[2rem] p-6 space-y-4 border border-bible-red-light">
+          <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-xl sm:rounded-[2rem] p-4 sm:p-6 space-y-3 sm:space-y-4 border border-bible-red-light">
             <div className="h-10 w-10 rounded-xl bg-stone-50 flex items-center justify-center">
               <BarChart className="h-5 w-5 text-bible-red" />
             </div>
             <div>
-              <p className="text-3xl font-header font-semibold text-ink">-{stats.streakDays}</p>
+              <p className="text-2xl sm:text-3xl font-header font-semibold text-ink">-{stats.streakDays}</p>
               <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Schedule Status</p>
             </div>
           </Card>
         </div>
 
-        <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-[2.5rem] p-8 space-y-6 flex flex-col items-center text-center">
+        <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-xl sm:rounded-[2.5rem] p-5 sm:p-8 space-y-4 sm:space-y-6 flex flex-col items-center text-center">
           <p className="text-xl font-header font-medium italic text-ink leading-relaxed">
             "Thy word is a lamp unto my feet, and a light unto my path."
           </p>

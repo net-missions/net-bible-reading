@@ -107,15 +107,23 @@ export const useSupabaseAuth = () => {
     }
   };
 
+  const capitalizeName = (name: string): string => {
+    if (!name) return "";
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
   const register = async (firstName: string, lastName: string, userRole: UserRole = "member") => {
     setIsLoading(true);
     try {
+      const capitalizedFirstName = capitalizeName(firstName.trim());
+      const capitalizedLastName = capitalizeName(lastName.trim());
+
       // Check if name already exists
       const { data: existing } = await supabase
         .from("profiles" as any)
         .select("id")
-        .ilike("first_name", firstName.trim())
-        .ilike("last_name", lastName.trim())
+        .ilike("first_name", capitalizedFirstName)
+        .ilike("last_name", capitalizedLastName)
         .single();
 
       if (existing) {
@@ -130,7 +138,7 @@ export const useSupabaseAuth = () => {
 
       const { data: newProfile, error: profileError } = await supabase
         .from("profiles" as any)
-        .insert({ first_name: firstName.trim(), last_name: lastName.trim() } as any)
+        .insert({ first_name: capitalizedFirstName, last_name: capitalizedLastName } as any)
         .select()
         .single();
 

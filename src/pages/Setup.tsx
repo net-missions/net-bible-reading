@@ -39,12 +39,19 @@ const Setup = () => {
     check();
   }, [navigate]);
 
+  const capitalizeName = (name: string): string => {
+    if (!name) return "";
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
+      const firstName = capitalizeName(values.firstName.trim());
+      const lastName = capitalizeName(values.lastName.trim());
       const { data: profile, error: pErr } = await supabase
         .from("profiles" as any)
-        .insert({ first_name: values.firstName.trim(), last_name: values.lastName.trim() } as any)
+        .insert({ first_name: firstName, last_name: lastName } as any)
         .select()
         .single();
       if (pErr || !profile) throw pErr || new Error("Failed to create profile");
@@ -87,10 +94,10 @@ const Setup = () => {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField control={form.control} name="firstName" render={({ field }) => (
-                  <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="lastName" render={({ field }) => (
-                  <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? "Creating..." : "Create Admin"}

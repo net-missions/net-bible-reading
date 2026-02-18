@@ -2,6 +2,7 @@ import React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User } from "lucide-react";
+import { User, ShieldCheck } from "lucide-react";
 
 const profileFormSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters."),
@@ -20,7 +21,8 @@ const profileFormSchema = z.object({
 });
 
 const Settings = () => {
-  const { profile, updateProfile } = useAuth();
+  const { profile, updateProfile, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   const profileForm = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -30,8 +32,15 @@ const Settings = () => {
     },
   });
 
+  const capitalizeName = (name: string): string => {
+    if (!name) return "";
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
   const onProfileSubmit = async (values: z.infer<typeof profileFormSchema>) => {
-    const success = await updateProfile({ first_name: values.firstName, last_name: values.lastName });
+    const firstName = capitalizeName(values.firstName.trim());
+    const lastName = capitalizeName(values.lastName.trim());
+    const success = await updateProfile({ first_name: firstName, last_name: lastName });
     if (success) toast({ title: "Profile updated" });
   };
 
@@ -65,6 +74,21 @@ const Settings = () => {
               </Form>
             </CardContent>
           </Card>
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center text-base">
+                  <ShieldCheck className="mr-2 h-4 w-4 text-primary" /> Admin
+                </CardTitle>
+                <CardDescription>Manage members and view congregation stats</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" onClick={() => navigate("/admin")} className="w-full sm:w-auto">
+                  Open Admin Dashboard
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
         <div className="text-center text-sm text-muted-foreground py-4">
           <p>"Your word is a lamp to my feet and a light to my path." — Psalm 119:105</p>
