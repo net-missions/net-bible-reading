@@ -2,13 +2,16 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://pibjpeltpfqxicozdefd.supabase.co";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpYmpwZWx0cGZxeGljb3pkZWZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2OTI0MzksImV4cCI6MjA2MjI2ODQzOX0.0Gop3gryWEBCM1iQAY_z-4FGaDNhQlITlFbfrBOmI-k";
-
-console.log("Supabase URL:", SUPABASE_URL);
-console.log("Supabase key:", SUPABASE_ANON_KEY ? "Key exists (not shown)" : "Key missing");
+const SUPABASE_URL = "https://vzvxugfdhoumqrvfmkff.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6dnh1Z2ZkaG91bXFydmZta2ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNjA3ODIsImV4cCI6MjA4NjkzNjc4Mn0.5Xd8MNrE_5e82dT9c4zfgctuRxzJBfuarRBL2ORVpG8";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
