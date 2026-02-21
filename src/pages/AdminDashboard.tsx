@@ -213,8 +213,8 @@ const AdminDashboard = () => {
     ? Math.round((members.filter((m) => m.chaptersRead > 0).reduce((sum, m) => sum + m.streak, 0) / members.filter((m) => m.chaptersRead > 0).length) * 10) / 10
     : 0;
 
-  const topReaders = [...members].sort((a, b) => b.chaptersRead - a.chaptersRead).slice(0, 5).filter((m) => m.chaptersRead > 0);
-  const topStreaks = [...members].sort((a, b) => b.streak - a.streak).slice(0, 5).filter((m) => m.streak > 0);
+  const topReaders = [...members].sort((a, b) => b.chaptersRead - a.chaptersRead).slice(0, 10).filter((m) => m.chaptersRead > 0);
+  const topStreaks = [...members].sort((a, b) => b.streak - a.streak).slice(0, 10).filter((m) => m.streak > 0);
 
   const completionBuckets = (() => {
     const buckets = [
@@ -297,10 +297,10 @@ const AdminDashboard = () => {
   return (
     <AppLayout>
       <div className="space-y-4 sm:space-y-6">
-        <Card className="overflow-hidden">
-          <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-            <CardTitle className="text-lg sm:text-xl">Admin Dashboard</CardTitle>
-            <CardDescription>Manage your congregation's reading progress</CardDescription>
+        <Card className="overflow-hidden border-none shadow-none bg-transparent">
+          <CardHeader className="px-0 py-4 sm:py-6">
+            <CardTitle className="text-2xl sm:text-4xl font-header font-bold text-ink tracking-tight">Admin Dashboard</CardTitle>
+            <CardDescription className="text-stone-500 text-base">Manage your congregation's reading progress</CardDescription>
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 pt-0">
             <Tabs defaultValue="overview" className="space-y-4">

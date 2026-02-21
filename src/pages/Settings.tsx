@@ -47,9 +47,9 @@ const Settings = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage your preferences.</p>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl sm:text-4xl font-header font-bold text-ink">Settings</h1>
+          <p className="text-muted-foreground text-sm">Manage your preferences.</p>
         </div>
         <Separator />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

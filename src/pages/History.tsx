@@ -71,7 +71,7 @@ const History = () => {
   return (
     <AppLayout>
       <div className="space-y-8">
-        <h1 className="text-4xl font-header font-semibold text-ink">Scripture</h1>
+        <h1 className="text-2xl sm:text-4xl font-header font-semibold text-ink">Scripture</h1>
 
         <div className="space-y-4">
           {isLoading ? (

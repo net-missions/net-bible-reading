@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Book, Calendar, BarChart, Settings } from "lucide-react";
+import { Book, Calendar, BarChart, Settings, Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +25,12 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const greeting = getTimeGreeting();
   const displayName = profile?.first_name ? capitalizeName(profile.first_name.trim()) : "there";
-  const showGreeting = location.pathname !== "/statistics" && location.pathname !== "/history" && location.pathname !== "/admin";
+  const showGreeting = location.pathname !== "/statistics" && location.pathname !== "/history" && location.pathname !== "/admin" && location.pathname !== "/prayer";
   const isHistoryOrStats = location.pathname === "/history" || location.pathname === "/statistics";
 
   const navLinks: NavLink[] = [
     { name: "Reading", path: "/checklist", icon: <Book className="h-5 w-5" /> },
+    { name: "Prayer", path: "/prayer", icon: <Heart className="h-5 w-5" /> },
     { name: "History", path: "/history", icon: <Calendar className="h-5 w-5" /> },
     { name: "Stats", path: "/statistics", icon: <BarChart className="h-5 w-5" /> },
   ];

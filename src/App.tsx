@@ -4,12 +4,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Checklist from "./pages/Checklist";
 import History from "./pages/History";
 import Statistics from "./pages/Statistics";
+import Prayer from "./pages/Prayer";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import Setup from "./pages/Setup";
@@ -35,6 +37,7 @@ const AppRoutes = () => (
     <Route path="/setup" element={<Setup />} />
     <Route path="/debug" element={<Debug />} />
     <Route path="/checklist" element={<ProtectedRoute><Checklist /></ProtectedRoute>} />
+    <Route path="/prayer" element={<ProtectedRoute><Prayer /></ProtectedRoute>} />
     <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
     <Route path="/statistics" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
     <Route path="/stats" element={<Navigate to="/statistics" replace />} />
@@ -69,13 +72,15 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
-          <ThemeProvider>
-            <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm">Loading...</div>}>
-              <AuthProvider>
-                <AppRoutes />
-              </AuthProvider>
-            </Suspense>
-          </ThemeProvider>
+          <LanguageProvider>
+            <ThemeProvider>
+              <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm">Loading...</div>}>
+                <AuthProvider>
+                  <AppRoutes />
+                </AuthProvider>
+              </Suspense>
+            </ThemeProvider>
+          </LanguageProvider>
         </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>

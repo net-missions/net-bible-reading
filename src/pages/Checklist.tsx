@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { StreakAnimation } from "@/components/ui/StreakAnimation";
 
 const Checklist = () => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ const Checklist = () => {
   });
   const [loading, setLoading] = useState(true);
   const [expandedBooks, setExpandedBooks] = useState<Record<string, boolean>>({});
+  const [showStreakAnimation, setShowStreakAnimation] = useState(false);
 
   // Fetch user reading progress and stats
   useEffect(() => {
@@ -68,6 +70,30 @@ const Checklist = () => {
   const handleCheckboxChange = async (book: string, chapter: number, checked: boolean) => {
     if (!user?.id) return;
 
+    let isDayNewlyCompleted = false;
+
+    if (checked) {
+      // Simulate the new progress state
+      const nextProgress = {
+        ...readingProgress,
+        [book]: {
+          ...(readingProgress[book] || {}),
+          [chapter]: true
+        }
+      };
+
+      const wasCompleted = todaysChapters.length > 0 && todaysChapters.every(
+        ({ bookName, chapterNumber }) => readingProgress[bookName]?.[chapterNumber]
+      );
+      const newlyCompleted = todaysChapters.length > 0 && todaysChapters.every(
+        ({ bookName, chapterNumber }) => nextProgress[bookName]?.[chapterNumber]
+      );
+      
+      if (newlyCompleted && !wasCompleted) {
+        isDayNewlyCompleted = true;
+      }
+    }
+
     // Update optimistically in the UI
     setReadingProgress(prev => ({
       ...prev,
@@ -77,12 +103,16 @@ const Checklist = () => {
       }
     }));
 
+    if (isDayNewlyCompleted) {
+      setShowStreakAnimation(true);
+    }
+
     // Save to Supabase
     const success = await saveChapterCompletion(user.id, book, chapter, checked);
     
     if (success) {
       fetchUserStats();
-      if (checked) {
+      if (checked && !isDayNewlyCompleted) {
         toast({
           title: "Chapter completed",
           description: `Great job completing ${book} ${chapter}!`,
@@ -216,10 +246,10 @@ const Checklist = () => {
               "text-[9px] font-bold uppercase tracking-[0.15em]",
               isMissed ? "text-orange-500" : "text-stone-400"
             )}>
-              {label}
+              {bookName}
             </p>
             <h3 className="text-xl lg:text-2xl font-header font-semibold text-[#1a1a1a]">
-              {title ?? (label.includes("Read ahead") ? `${bookName} ${chapterNumber}` : bookName)}
+              {title ?? (label.includes("Read ahead") ? `${label}: Chapter ${chapterNumber}` : label)}
             </h3>
           </div>
           <div
@@ -345,7 +375,7 @@ const Checklist = () => {
                     </p>
                   </div>
                   
-                  <div className="flex items-center gap-3 py-1">
+                  <div className="flex items-center gap-3 py-1 lg:hidden">
                     <span className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-200 to-transparent" />
                     <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
                       Continue reading
@@ -355,7 +385,7 @@ const Checklist = () => {
                   </div>
 
                   {readAheadChapter && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 lg:hidden">
                       {chapterCard(
                         readAheadChapter.bookName,
                         readAheadChapter.chapterNumber,
@@ -454,6 +484,11 @@ const Checklist = () => {
             </div>
           </div>
         )}
+        <StreakAnimation
+          streak={stats.streakDays}
+          isOpen={showStreakAnimation}
+          onClose={() => setShowStreakAnimation(false)}
+        />
       </div>
     </AppLayout>
   );

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,19 +17,21 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
-const formSchema = z.object({
-  firstName: z.string().min(2, "Kinahanglan ang pangalan"),
-  lastName: z.string().min(2, "Kinahanglan ang apelyido"),
-  role: z.enum(["member", "admin"]),
-});
-
-type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
   const { register, isLoading } = useAuth();
+  const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const formSchema = z.object({
+    firstName: z.string().min(2, t("form.firstName.error")),
+    lastName: z.string().min(2, t("form.lastName.error")),
+    role: z.enum(["member", "admin"]),
+  });
+
+  type FormValues = z.infer<typeof formSchema>;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -42,17 +45,20 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative">
+      <div className="absolute top-4 right-4">
+        <LanguageToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-red-500">Net Missions Fellowship</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Join the reading journey</p>
+          <h1 className="text-2xl font-bold text-red-500">{t("app.title")}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t("login.subtitle")}</p>
         </div>
 
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Register</CardTitle>
-            <CardDescription>Enter your name to create an account</CardDescription>
+            <CardTitle className="text-lg">{t("register.title")}</CardTitle>
+            <CardDescription>{t("register.description")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -62,7 +68,7 @@ const Register = () => {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Pangalan</FormLabel>
+                      <FormLabel>{t("form.firstName")}</FormLabel>
                       <FormControl>
                         <Input placeholder="" {...field} />
                       </FormControl>
@@ -75,7 +81,7 @@ const Register = () => {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Apelyido</FormLabel>
+                      <FormLabel>{t("form.lastName")}</FormLabel>
                       <FormControl>
                         <Input placeholder="" {...field} />
                       </FormControl>
@@ -106,16 +112,16 @@ const Register = () => {
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={isSubmitting || isLoading}>
-                  {isSubmitting || isLoading ? "Creating..." : "Register"}
+                  {isSubmitting || isLoading ? t("register.button.submitting") : t("register.button")}
                 </Button>
               </form>
             </Form>
           </CardContent>
           <CardFooter>
-            <div className="text-center text-sm text-muted-foreground w-full">
-              Already registered?{" "}
-              <Link to="/login" className="text-primary hover:underline">
-                Sign In
+            <div className="text-center text-base text-foreground w-full">
+              {t("register.hasAccount")}{" "}
+              <Link to="/login" className="text-primary font-semibold hover:underline">
+                {t("register.loginLink")}
               </Link>
             </div>
           </CardFooter>
