@@ -12,6 +12,8 @@ export type Profile = {
 };
 
 const CURRENT_USER_KEY = "nmf_current_user_id";
+const CACHED_PROFILE_KEY = "nmf_cached_profile";
+const CACHED_ROLE_KEY = "nmf_cached_role";
 
 export const useSupabaseAuth = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -20,15 +22,32 @@ export const useSupabaseAuth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // 1. Instantly load cached session data to paint the UI immediately
     const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
+    const cachedProfileStr = localStorage.getItem(CACHED_PROFILE_KEY);
+    const cachedRole = localStorage.getItem(CACHED_ROLE_KEY) as UserRole | null;
+
     if (savedUserId) {
-      loadUser(savedUserId);
+      if (cachedProfileStr && cachedRole) {
+        try {
+          const parsedProfile = JSON.parse(cachedProfileStr);
+          // Set state immediately to skip the loading screen for returning users
+          setProfile(parsedProfile);
+          setRole(cachedRole);
+          // Don't turn off isLoading yet, wait for background refresh to finish (or fail gracefully)
+        } catch (e) {
+          console.error("Failed to parse cached profile", e);
+        }
+      }
+      
+      // 2. Refresh the session in the background
+      loadUser(savedUserId, !!cachedProfileStr);
     } else {
       setIsLoading(false);
     }
   }, []);
 
-  const loadUser = async (userId: string) => {
+  const loadUser = async (userId: string, hasCachedData: boolean = false) => {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles" as any)
@@ -36,26 +55,58 @@ export const useSupabaseAuth = () => {
         .eq("id", userId)
         .single();
 
-      if (profileError || !profileData) {
-        localStorage.removeItem(CURRENT_USER_KEY);
+      if (profileError) {
+        // PGRST116 means 0 rows returned, so the user was deleted from the database.
+        // If it's anything else (like a network error), we should keep the user logged in
+        // using their cached profile if they have one.
+        if (profileError.code === "PGRST116") {
+          clearLocalSession();
+        } else if (!hasCachedData) {
+          // It's a network error, but we don't have a cache, so we must error out
+          clearLocalSession();
+        } else {
+          console.warn("Network error refreshing session, but using cached profile:", profileError);
+        }
         setIsLoading(false);
         return;
       }
 
-      setProfile(profileData as any);
+      const verifiedProfile = profileData as any;
+      setProfile(verifiedProfile);
+      localStorage.setItem(CACHED_PROFILE_KEY, JSON.stringify(verifiedProfile));
 
-      const { data: roleData } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from("user_roles" as any)
         .select("role")
         .eq("user_id", userId)
         .single();
-
-      setRole(((roleData as any)?.role as UserRole) || "member");
-    } catch {
-      localStorage.removeItem(CURRENT_USER_KEY);
+        
+      if (!roleError && roleData) {
+        const verifiedRole = (roleData as any).role as UserRole;
+        setRole(verifiedRole);
+        localStorage.setItem(CACHED_ROLE_KEY, verifiedRole);
+      } else if (roleError && roleError.code === "PGRST116") {
+        setRole("member");
+        localStorage.setItem(CACHED_ROLE_KEY, "member");
+      }
+      
+    } catch (e) {
+      if (!hasCachedData) {
+         clearLocalSession();
+      } else {
+         console.warn("Unexpected error refreshing session, maintaining cached session:", e);
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const clearLocalSession = () => {
+    localStorage.removeItem(CURRENT_USER_KEY);
+    localStorage.removeItem(CACHED_PROFILE_KEY);
+    localStorage.removeItem(CACHED_ROLE_KEY);
+    setProfile(null);
+    setRole(null);
   };
 
   const login = async (firstName: string, lastName: string) => {
@@ -79,9 +130,7 @@ export const useSupabaseAuth = () => {
       }
 
       const profile = data as any;
-      localStorage.setItem(CURRENT_USER_KEY, profile.id);
-      setProfile(profile);
-
+      
       const { data: roleData } = await supabase
         .from("user_roles" as any)
         .select("role")
@@ -89,6 +138,13 @@ export const useSupabaseAuth = () => {
         .single();
 
       const userRole = ((roleData as any)?.role as UserRole) || "member";
+      
+      // Create session
+      localStorage.setItem(CURRENT_USER_KEY, profile.id);
+      localStorage.setItem(CACHED_PROFILE_KEY, JSON.stringify(profile));
+      localStorage.setItem(CACHED_ROLE_KEY, userRole);
+      
+      setProfile(profile);
       setRole(userRole);
 
       if (userRole === "admin") {
@@ -152,7 +208,11 @@ export const useSupabaseAuth = () => {
 
       if (roleError) throw roleError;
 
+      // Create session
       localStorage.setItem(CURRENT_USER_KEY, profile.id);
+      localStorage.setItem(CACHED_PROFILE_KEY, JSON.stringify(profile));
+      localStorage.setItem(CACHED_ROLE_KEY, userRole);
+      
       setProfile(profile);
       setRole(userRole);
 
@@ -175,9 +235,7 @@ export const useSupabaseAuth = () => {
   };
 
   const logout = async () => {
-    localStorage.removeItem(CURRENT_USER_KEY);
-    setProfile(null);
-    setRole(null);
+    clearLocalSession();
     toast({ title: "Signed out" });
     navigate("/login");
   };
@@ -191,7 +249,15 @@ export const useSupabaseAuth = () => {
         .eq("id", profile.id);
 
       if (error) throw error;
-      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
+      
+      setProfile((prev) => {
+        const updated = prev ? { ...prev, ...updates } : null;
+        if (updated) {
+          localStorage.setItem(CACHED_PROFILE_KEY, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      
       toast({ title: "Profile updated" });
       return true;
     } catch (error: any) {
