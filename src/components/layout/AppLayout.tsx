@@ -41,7 +41,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background pb-24 lg:pb-0 lg:flex-row">
+    <div className="flex flex-col min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0 lg:flex-row pt-[env(safe-area-inset-top)]">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-56 lg:border-r lg:border-stone-200 lg:bg-paper/80 lg:dark:border-stone-800 lg:dark:bg-stone-900/50">
         <div className="flex flex-col flex-1 pt-6 pb-4">
@@ -88,23 +88,36 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {children}
       </main>
 
-      {/* Mobile bottom nav: same links as desktop so admins get Admin too */}
-      <nav className="fixed left-1/2 -translate-x-1/2 bg-stone-900 rounded-full px-2 py-2 shadow-2xl z-50 flex items-center gap-0.5 sm:gap-1 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-6 lg:hidden">
+      {/* Mobile bottom nav: Floating active style (Icons Only) */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t border-stone-800 px-2 sm:px-4 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)] z-50 flex justify-around items-center lg:hidden">
         {desktopLinks.map((link) => {
           const active = isActive(link.path);
           return (
             <button
               key={link.path}
               onClick={() => navigate(link.path)}
-              className={cn(
-                "flex items-center justify-center p-2.5 sm:p-3 rounded-full transition-all min-w-[44px] min-h-[44px]",
-                active ? "bg-stone-800 text-white shadow-lg scale-105" : "text-stone-400 hover:text-white"
-              )}
+              className="relative flex items-center justify-center p-2 min-w-[64px] h-[56px]"
               aria-label={link.name}
             >
-              {React.cloneElement(link.icon as React.ReactElement, {
-                className: cn("h-5 w-5", active ? "text-white" : "text-stone-400"),
-              })}
+              {/* Active Bubble Background (Creates the visual "notch" effect) */}
+              <div 
+                className={cn(
+                  "absolute flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                  active 
+                    ? "-top-6 bg-bible-red shadow-[0_4px_12px_rgba(225,29,72,0.4)] ring-[6px] ring-background w-[56px] h-[56px]" 
+                    : "top-1/2 -translate-y-1/2 bg-transparent w-12 h-12"
+                )}
+              >
+                {React.cloneElement(link.icon as React.ReactElement, {
+                  className: cn(
+                    "transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]", 
+                    active ? "h-6 w-6 text-white scale-110" : "h-6 w-6 text-stone-400"
+                  ),
+                })}
+              </div>
+
+              {/* Inactive Hover Target (Larger hit area) */}
+              <div className="absolute inset-0 rounded-xl hover:bg-stone-800/30 transition-colors pointer-events-none" />
             </button>
           );
         })}

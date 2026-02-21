@@ -76,7 +76,7 @@
     @apply border-border;
   }
 
-  body {
+  html, body {
     font-family: var(--font-sans);
     @apply bg-background text-foreground;
   }
