@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { bibleBooks, getUserReadingProgress, saveChapterCompletion, getUserReadingStats } from "@/services/bibleService";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BookOpen, Search, ChevronRight, CheckCircle2, ChevronDown, Flame, CalendarDays, AlertCircle } from "lucide-react";
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { StreakAnimation } from "@/components/ui/StreakAnimation";
+import { bibleBooks, getUserReadingProgress, saveChapterCompletion, getUserReadingStats } from "@/services/bibleService";
 
 const Checklist = () => {
   const { user } = useAuth();
@@ -27,6 +28,8 @@ const Checklist = () => {
   const [loading, setLoading] = useState(true);
   const [expandedBooks, setExpandedBooks] = useState<Record<string, boolean>>({});
   const [showStreakAnimation, setShowStreakAnimation] = useState(false);
+  const [activeStartIndex, setActiveStartIndex] = useState<number>(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Fetch user reading progress and stats
   useEffect(() => {
@@ -170,21 +173,33 @@ const Checklist = () => {
     return list;
   }, []);
 
+  useEffect(() => {
+    if (!loading && Object.keys(readingProgress).length > 0 && !isInitialized && allChaptersInOrder.length > 0) {
+      const firstUnreadIdx = allChaptersInOrder.findIndex(
+        (ch) => !readingProgress[ch.bookName]?.[ch.chapterNumber]
+      );
+      if (firstUnreadIdx !== -1) {
+        // Start exactly at the first unread chapter, no floor alignment
+        setActiveStartIndex(firstUnreadIdx);
+      } else {
+        setActiveStartIndex(allChaptersInOrder.length - 1);
+      }
+      setIsInitialized(true);
+    }
+  }, [loading, readingProgress, isInitialized, allChaptersInOrder, chaptersPerDay]);
+
   // Today's chapters
   const todaysChapters = useMemo(() => {
-    const startIndex = (currentDay - 1) * chaptersPerDay;
-    return allChaptersInOrder.slice(startIndex, startIndex + chaptersPerDay);
-  }, [currentDay, allChaptersInOrder]);
+    if (!isInitialized) return [];
+    return allChaptersInOrder.slice(activeStartIndex, activeStartIndex + chaptersPerDay);
+  }, [isInitialized, activeStartIndex, allChaptersInOrder, chaptersPerDay]);
 
   // Missed Chapters Logic
   const missedChapters = useMemo(() => {
-    // Check all chapters before today's start index
-    const startIndex = (currentDay - 1) * chaptersPerDay;
-    const previousChapters = allChaptersInOrder.slice(0, startIndex);
-    
-    // Filter for unread ones
-    return previousChapters.filter(ch => !readingProgress[ch.bookName]?.[ch.chapterNumber]);
-  }, [currentDay, allChaptersInOrder, readingProgress, chaptersPerDay]);
+    // If the schedule is completely dynamic based on progress, "missed chapters"
+    // is no longer a concept since you just keep reading the next unread ones.
+    return [];
+  }, []);
 
   // Weekly Progress (Last 7 Days)
   const weeklyProgress = useMemo(() => {
@@ -211,9 +226,9 @@ const Checklist = () => {
   // Read Ahead Logic
   const readAheadChapter = useMemo(() => {
     if (!allTodayCompleted) return null;
-    const nextIndex = currentDay * chaptersPerDay;
+    const nextIndex = activeStartIndex + chaptersPerDay;
     return allChaptersInOrder[nextIndex] ?? null;
-  }, [allTodayCompleted, currentDay, chaptersPerDay, allChaptersInOrder]);
+  }, [allTodayCompleted, activeStartIndex, chaptersPerDay, allChaptersInOrder]);
 
   const readAheadNextChapter = useMemo(() => {
     if (!allTodayCompleted || !readAheadChapter) return null;
@@ -277,7 +292,7 @@ const Checklist = () => {
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <div className="flex items-baseline gap-2 min-w-0">
               <span className="text-bible-red font-bold tracking-[0.2em] text-[10px] uppercase shrink-0">
-                Day {currentDay}
+                Day {Math.floor(activeStartIndex / chaptersPerDay) + 1}
               </span>
               <span className="text-stone-500 font-normal select-none shrink-0" aria-hidden>·</span>
               <time className="font-header font-medium text-base text-ink truncate">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { bibleBooks, getUserReadingProgress, saveChapterCompletion, getUserReadingStats, testamentGroups } from "@/services/bibleService";
+import { bibleBooks, getUserReadingProgress, saveChapterCompletion, saveBookCompletion, getUserReadingStats, testamentGroups } from "@/services/bibleService";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,40 @@ const Dashboard = () => {
         }
       }));
       
+      toast({
+        title: "Error",
+        description: "Failed to save your progress",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCheckAll = async (book: string, chapters: number, check: boolean) => {
+    if (!user?.id) return;
+
+    // Optimistically update UI
+    setReadingProgress(prev => {
+      const newBookProgress = { ...prev[book] };
+      for (let i = 1; i <= chapters; i++) {
+        newBookProgress[i] = check;
+      }
+      return {
+        ...prev,
+        [book]: newBookProgress
+      };
+    });
+
+    const success = await saveBookCompletion(user.id, book, chapters, check);
+    
+    if (success) {
+      fetchUserStats();
+      toast({
+        title: check ? "Book completed" : "Progress cleared",
+        description: check ? `Great job completing ${book}!` : `Cleared progress for ${book}.`,
+      });
+    } else {
+      // Revert UI if fail
+      fetchReadingProgress();
       toast({
         title: "Error",
         description: "Failed to save your progress",
@@ -424,8 +458,21 @@ const Dashboard = () => {
                                           </div>
                                         </AccordionTrigger>
                                         <AccordionContent>
-                                          <div className="p-4 bg-muted/20 rounded-md flex flex-wrap">
-                                            {renderChapters(book.name, book.chapters)}
+                                          <div className="p-4 bg-muted/20 rounded-md">
+                                            <div className="flex justify-between items-center mb-4">
+                                              <span className="text-sm font-medium">Chapters</span>
+                                              <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                onClick={() => handleCheckAll(book.name, book.chapters, completedChapters < book.chapters)}
+                                                className="h-8 text-xs"
+                                              >
+                                                {completedChapters < book.chapters ? "Check All" : "Uncheck All"}
+                                              </Button>
+                                            </div>
+                                            <div className="flex flex-wrap">
+                                              {renderChapters(book.name, book.chapters)}
+                                            </div>
                                           </div>
                                         </AccordionContent>
                                       </AccordionItem>

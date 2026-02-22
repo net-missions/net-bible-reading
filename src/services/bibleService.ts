@@ -57,6 +57,145 @@ export const getUserReadingProgress = async (userId: string): Promise<Record<str
   }
 };
 
+export const saveBookCompletion = async (userId: string, book: string, chapters: number, isCompleted: boolean): Promise<boolean> => {
+  try {
+    const { data: existingRecords } = await supabase
+      .from("reading_progress" as any)
+      .select("*")
+      .eq("user_id", userId)
+      .eq("book", book);
+
+    const now = new Date().toISOString();
+    const existingMap = new Map();
+    if (existingRecords) {
+      existingRecords.forEach((r: any) => existingMap.set(r.chapter, r));
+    }
+
+    const insertData = [];
+    const updatePromises = [];
+
+    for (let c = 1; c <= chapters; c++) {
+      if (existingMap.has(c)) {
+        updatePromises.push(
+          supabase
+            .from("reading_progress" as any)
+            .update({
+              completed: isCompleted,
+              completed_at: isCompleted ? now : null
+            } as any)
+            .eq("id", existingMap.get(c).id)
+        );
+      } else {
+        insertData.push({
+          user_id: userId,
+          book,
+          chapter: c,
+          completed: isCompleted,
+          completed_at: isCompleted ? now : null
+        });
+      }
+    }
+
+    if (insertData.length > 0) {
+      const { error } = await supabase.from("reading_progress" as any).insert(insertData as any);
+      if (error) throw error;
+    }
+
+    if (updatePromises.length > 0) {
+      const results = await Promise.all(updatePromises);
+      for (const res of results) {
+        if (res.error) throw res.error;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error bulk saving:", error);
+    return false;
+  }
+};
+
+export const saveAdvancedSync = async (userId: string, targetBookName: string, targetChapter: number): Promise<boolean> => {
+  try {
+    const { data: existingRecords } = await supabase
+      .from("reading_progress" as any)
+      .select("*")
+      .eq("user_id", userId);
+
+    const now = new Date().toISOString();
+    const existingMap = new Map();
+    if (existingRecords) {
+      existingRecords.forEach((r: any) => existingMap.set(`${r.book}-${r.chapter}`, r));
+    }
+
+    const insertData = [];
+    const updatePromises = [];
+
+    let hasPassedTarget = false;
+
+    for (const book of bibleBooks) {
+      for (let c = 1; c <= book.chapters; c++) {
+        const isTarget = book.name === targetBookName && c === targetChapter;
+        const markAsRead = !hasPassedTarget;
+        
+        if (isTarget) {
+          hasPassedTarget = true;
+        }
+
+        const key = `${book.name}-${c}`;
+        const existing = existingMap.get(key);
+
+        if (existing) {
+          // Only update if the status is changing
+          if (existing.completed !== markAsRead) {
+            updatePromises.push(
+              supabase
+                .from("reading_progress" as any)
+                .update({
+                  completed: markAsRead,
+                  completed_at: markAsRead ? now : null
+                } as any)
+                .eq("id", existing.id)
+            );
+          }
+        } else if (markAsRead) {
+          // Only insert if it needs to be marked as read (saves DB space)
+          insertData.push({
+            user_id: userId,
+            book: book.name,
+            chapter: c,
+            completed: true,
+            completed_at: now
+          });
+        }
+      }
+    }
+
+    // Process inserts in batches to avoid payload too large errors
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < insertData.length; i += BATCH_SIZE) {
+      const batch = insertData.slice(i, i + BATCH_SIZE);
+      const { error } = await supabase.from("reading_progress" as any).insert(batch as any);
+      if (error) throw error;
+    }
+
+    // Process updates in chunks
+    const UPDATE_BATCH_SIZE = 20;
+    for (let i = 0; i < updatePromises.length; i += UPDATE_BATCH_SIZE) {
+      const batch = updatePromises.slice(i, i + UPDATE_BATCH_SIZE);
+      const results = await Promise.all(batch);
+      for (const res of results) {
+        if (res.error) throw res.error;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error advanced syncing:", error);
+    return false;
+  }
+};
+
 export const saveChapterCompletion = async (userId: string, book: string, chapter: number, isCompleted: boolean): Promise<boolean> => {
   try {
     const { data: existing } = await supabase.from("reading_progress" as any).select("*").eq("user_id", userId).eq("book", book).eq("chapter", chapter).maybeSingle();
