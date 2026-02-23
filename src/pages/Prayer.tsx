@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPrayers, addPrayer, togglePrayerReaction, Prayer as PrayerType } from "@/services/prayerService";
+import { getPrayers, addPrayer, updatePrayer, togglePrayerReaction, Prayer as PrayerType } from "@/services/prayerService";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { format, isToday, isYesterday, isThisWeek } from "date-fns";
-import { MessageSquarePlus, Heart } from "lucide-react";
+import { MessageSquarePlus, Heart, Edit2, X, Check } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const Prayer = () => {
@@ -18,6 +18,9 @@ const Prayer = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editIsAnonymous, setEditIsAnonymous] = useState(false);
 
   useEffect(() => {
     fetchPrayers();
@@ -99,6 +102,41 @@ const Prayer = () => {
       toast({
         title: "Error",
         description: "Failed to submit your prayer request. Please try again.",
+        variant: "destructive",
+      });
+    }
+    setIsSubmitting(false);
+  };
+
+  const startEditing = (prayer: PrayerType) => {
+    setEditingId(prayer.id);
+    setEditContent(prayer.content);
+    setEditIsAnonymous(prayer.is_anonymous);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditContent("");
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editContent.trim() || !user || !editingId) return;
+    
+    setIsSubmitting(true);
+    const success = await updatePrayer(editingId, editContent.trim(), editIsAnonymous);
+    
+    if (success) {
+      toast({
+        title: "Prayer updated",
+        description: "Your prayer request has been updated.",
+      });
+      setEditingId(null);
+      fetchPrayers();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update your prayer request. Please try again.",
         variant: "destructive",
       });
     }
@@ -213,9 +251,57 @@ const Prayer = () => {
                         className="border border-stone-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-[1.75rem] overflow-hidden bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 group"
                       >
                         <CardContent className="p-4 sm:p-5 space-y-3">
-                          <p className="text-stone-800 text-[1.02rem] leading-relaxed whitespace-pre-wrap font-medium">
-                            "{prayer.content}"
-                          </p>
+                          {editingId === prayer.id ? (
+                            <form onSubmit={handleUpdate} className="space-y-3">
+                              <Textarea 
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="min-h-[100px] resize-none border-stone-200 focus:border-stone-300 rounded-xl bg-stone-50/50 p-3 text-sm"
+                                placeholder="Edit your prayer..."
+                                autoFocus
+                              />
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`edit-anon-${prayer.id}`}
+                                    checked={editIsAnonymous} 
+                                    onCheckedChange={(c) => setEditIsAnonymous(c as boolean)} 
+                                    className="h-4 w-4 data-[state=checked]:bg-stone-800 data-[state=checked]:border-stone-800"
+                                  />
+                                  <label 
+                                    htmlFor={`edit-anon-${prayer.id}`}
+                                    className="text-xs font-medium text-stone-600 cursor-pointer select-none"
+                                  >
+                                    Post anonymously
+                                  </label>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={cancelEditing}
+                                    className="h-8 rounded-full px-3 text-stone-500"
+                                  >
+                                    <X className="h-3.5 w-3.5 mr-1" />
+                                    Cancel
+                                  </Button>
+                                  <Button 
+                                    type="submit"
+                                    size="sm"
+                                    disabled={!editContent.trim() || isSubmitting}
+                                    className="h-8 rounded-full px-4 bg-stone-900 text-white"
+                                  >
+                                    {isSubmitting ? "Saving..." : "Save Changes"}
+                                  </Button>
+                                </div>
+                              </div>
+                            </form>
+                          ) : (
+                            <p className="text-stone-800 text-[1.02rem] leading-relaxed whitespace-pre-wrap font-medium">
+                              "{prayer.content}"
+                            </p>
+                          )}
                           
                           <div className="flex items-center justify-between pt-3 border-t border-stone-100 mt-3">
                             <div className="flex items-center gap-2.5">
@@ -236,22 +322,36 @@ const Prayer = () => {
                               </div>
                             </div>
 
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleToggleReaction(prayer.id)}
-                              className={`h-8 rounded-full flex items-center gap-1.5 transition-all px-2.5 ${
-                                prayer.user_has_reacted 
-                                  ? "text-rose-500 bg-rose-50 hover:bg-rose-100" 
-                                  : "text-stone-400 hover:text-rose-500 hover:bg-rose-50"
-                              }`}
-                            >
-                              <Heart className={`h-3.5 w-3.5 ${prayer.user_has_reacted ? "fill-current" : ""}`} />
-                              {prayer.reaction_count && prayer.reaction_count > 0 ? (
-                                <span className="text-xs font-bold leading-none">{prayer.reaction_count}</span>
-                              ) : null}
-                              <span className="sr-only">Pray for this</span>
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              {user && prayer.user_id === user.id && editingId !== prayer.id && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => startEditing(prayer)}
+                                  className="h-8 rounded-full flex items-center gap-1.5 text-stone-400 hover:text-stone-900 hover:bg-stone-50 transition-all px-2.5"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                  <span className="text-xs font-medium">Edit</span>
+                                </Button>
+                              )}
+                              
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleToggleReaction(prayer.id)}
+                                className={`h-8 rounded-full flex items-center gap-1.5 transition-all px-2.5 ${
+                                  prayer.user_has_reacted 
+                                    ? "text-rose-500 bg-rose-50 hover:bg-rose-100" 
+                                    : "text-stone-400 hover:text-rose-500 hover:bg-rose-50"
+                                }`}
+                              >
+                                <Heart className={`h-3.5 w-3.5 ${prayer.user_has_reacted ? "fill-current" : ""}`} />
+                                {prayer.reaction_count && prayer.reaction_count > 0 ? (
+                                  <span className="text-xs font-bold leading-none">{prayer.reaction_count}</span>
+                                ) : null}
+                                <span className="sr-only">Pray for this</span>
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>

@@ -108,3 +108,28 @@ export const addPrayer = async (userId: string, content: string, isAnonymous: bo
     return false;
   }
 };
+export const updatePrayer = async (prayerId: string, content: string, isAnonymous: boolean): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from("prayers" as any)
+      .update({
+        content,
+        is_anonymous: isAnonymous
+      })
+      .eq("id", prayerId)
+      .select();
+
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      console.error("Prayer update failed: No rows updated. This might be due to Row Level Security (RLS) policies.");
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error updating prayer:", error);
+    return false;
+  }
+};
+
