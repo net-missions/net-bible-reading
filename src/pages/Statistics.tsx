@@ -173,6 +173,97 @@ const Statistics = () => {
             Psalm 119:105
           </p>
         </Card>
+
+        {/* Weekly Schedule Section */}
+        <div className="space-y-4 pt-4">
+          <div className="flex items-center gap-2 px-2">
+            <Calendar className="h-5 w-5 text-bible-red" />
+            <h2 className="text-lg font-header font-semibold text-ink uppercase tracking-tight">Weekly Schedule</h2>
+          </div>
+          
+          <div className="grid gap-3">
+            {/* Sunday Service */}
+            <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-2xl p-5 hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all group">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 text-left">
+                  <h3 className="font-header font-bold text-ink text-base">Sunday Service</h3>
+                  <p className="text-stone-400 font-bold uppercase tracking-widest text-[10px]">Every Sunday</p>
+                </div>
+                <div className="bg-stone-50 px-3 py-1.5 rounded-full shrink-0">
+                  <span className="text-xs font-bold text-stone-600">9:00 AM - 11:00 AM</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Prayer Meetings */}
+            <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-2xl p-5 hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all group">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 text-left">
+                  <h3 className="font-header font-bold text-ink text-base">Prayer Meetings</h3>
+                  <p className="text-stone-400 font-bold uppercase tracking-widest text-[10px]">Tue / Thu</p>
+                </div>
+                <div className="bg-stone-50 px-3 py-1.5 rounded-full shrink-0">
+                  <span className="text-xs font-bold text-stone-600">5:30 PM - 6:30 PM</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Midweek Service */}
+            <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-2xl p-5 hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all group">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 text-left">
+                  <h3 className="font-header font-bold text-ink text-base">Midweek Service</h3>
+                  <p className="text-stone-400 font-bold uppercase tracking-widest text-[10px]">Wednesday</p>
+                </div>
+                <div className="bg-stone-50 px-3 py-1.5 rounded-full shrink-0">
+                  <span className="text-xs font-bold text-stone-600">5:30 PM - 6:30 PM</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Women's Prayer */}
+            <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-2xl p-5 hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all group">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 text-left">
+                  <h3 className="font-header font-bold text-ink text-base">Prayer, Soaking & Intercession</h3>
+                  <div className="flex items-center gap-2">
+                    <p className="text-stone-400 font-bold uppercase tracking-widest text-[10px]">Every Saturday</p>
+                    <span className="text-[10px] bg-bible-red/10 text-bible-red px-2 py-0.5 rounded-full font-bold uppercase">Women</span>
+                  </div>
+                </div>
+                <div className="bg-stone-50 px-3 py-1.5 rounded-full shrink-0">
+                  <span className="text-xs font-bold text-stone-600">1:30 PM - 2:30 PM</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Prayer and Fasting */}
+            <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-2xl p-5 hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all group">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 text-left">
+                  <h3 className="font-header font-bold text-ink text-base">Prayer and Fasting</h3>
+                  <p className="text-stone-400 font-bold uppercase tracking-widest text-[10px]">2nd Saturday of Month</p>
+                </div>
+                <div className="bg-stone-50 px-3 py-1.5 rounded-full shrink-0">
+                  <span className="text-xs font-bold text-stone-600">Check Group Chat</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Worship Night */}
+            <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-2xl p-5 hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all group">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 text-left">
+                  <h3 className="font-header font-bold text-ink text-base">Worship Night</h3>
+                  <p className="text-stone-400 font-bold uppercase tracking-widest text-[10px]">1st Sunday of Month</p>
+                </div>
+                <div className="bg-stone-50 px-3 py-1.5 rounded-full shrink-0">
+                  <span className="text-xs font-bold text-stone-600">5:30 PM - 6:30 PM</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );

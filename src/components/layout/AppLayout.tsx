@@ -6,26 +6,11 @@ import { cn } from "@/lib/utils";
 
 type NavLink = { name: string; path: string; icon: React.ReactNode };
 
-function getTimeGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning";
-  if (hour < 17) return "Good Afternoon";
-  return "Good Evening";
-}
-
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const capitalizeName = (name: string): string => {
-    if (!name) return "";
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  };
-
-  const greeting = getTimeGreeting();
-  const displayName = profile?.first_name ? capitalizeName(profile.first_name.trim()) : "there";
-  const showGreeting = location.pathname !== "/statistics" && location.pathname !== "/history" && location.pathname !== "/admin" && location.pathname !== "/prayer" && location.pathname !== "/insights";
   const isHistoryOrStats = location.pathname === "/history" || location.pathname === "/statistics";
 
   const navLinks: NavLink[] = [
@@ -46,11 +31,6 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-56 lg:border-r lg:border-stone-200 lg:bg-paper/80 lg:dark:border-stone-800 lg:dark:bg-stone-900/50">
         <div className="flex flex-col flex-1 pt-6 pb-4">
-          {/* Desktop: always show greeting in sidebar for all tabs */}
-          <div className="px-5 mb-6">
-            <p className="text-foreground text-sm font-semibold tracking-tight">{greeting},</p>
-            <p className="text-foreground text-lg font-bold truncate">{displayName}</p>
-          </div>
           <nav className="flex-1 px-3 space-y-0.5">
             {desktopLinks.map((link) => {
               const active = isActive(link.path);
@@ -81,11 +61,6 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           isHistoryOrStats ? "lg:pl-[15rem] lg:pr-10" : "lg:pl-[14rem] lg:pr-6"
         )}
       >
-        {showGreeting && (
-          <p className="text-foreground text-lg font-semibold tracking-tight mb-1.5 sm:text-xl lg:sr-only">
-            {greeting}, {displayName}
-          </p>
-        )}
         {children}
       </main>
 

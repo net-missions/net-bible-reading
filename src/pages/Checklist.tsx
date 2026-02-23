@@ -17,7 +17,7 @@ import { StreakAnimation } from "@/components/ui/StreakAnimation";
 import { bibleBooks, getUserReadingProgress, saveChapterCompletion, getUserReadingStats, READING_START_DATE, CHAPTERS_PER_DAY } from "@/services/bibleService";
 
 const Checklist = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [readingProgress, setReadingProgress] = useState<Record<string, Record<number, boolean>>>({});
   const [stats, setStats] = useState({
     totalChaptersRead: 0,
@@ -245,6 +245,46 @@ const Checklist = () => {
     return allChaptersInOrder[idx + 1] ?? null;
   }, [allTodayCompleted, readAheadChapter, allChaptersInOrder]);
 
+  const todaysEvents = useMemo(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    const firstName = profile?.first_name 
+      ? profile.first_name.charAt(0).toUpperCase() + profile.first_name.slice(1).toLowerCase().trim() 
+      : 'friend';
+
+    const getGreeting = (startHour: number) => {
+      if (hour >= startHour + 1) return `Hope it blessed you, ${firstName}! 🙌`;
+      if (hour >= startHour) return "Happening now! 🔥";
+      if (hour >= startHour - 2) return "Almost time! 👋";
+      return `See you later, ${firstName}! ✨`;
+    };
+
+    const getEventsForDay = (dayOfWeek: number, dayOfMonth: number, isTomorrow: boolean) => {
+      const events: { name: string; time: string; tag?: string; emoji: string; greeting: string; isTomorrow: boolean }[] = [];
+      const g = (h: number) => isTomorrow ? `See you tomorrow, ${firstName}!` : getGreeting(h);
+
+      if (dayOfWeek === 0) {
+        events.push({ name: "Sunday Service", time: "9 – 11 AM", emoji: "⛪", greeting: g(9), isTomorrow });
+        if (dayOfMonth <= 7) events.push({ name: "Worship Night", time: "5:30 – 6:30 PM", emoji: "🎵", greeting: g(17), isTomorrow });
+      } else if (dayOfWeek === 2 || dayOfWeek === 4) {
+        events.push({ name: "Prayer Meeting", time: "5:30 – 6:30 PM", emoji: "🙏", greeting: g(17), isTomorrow });
+      } else if (dayOfWeek === 3) {
+        events.push({ name: "Midweek Service", time: "5:30 – 6:30 PM", emoji: "📖", greeting: g(17), isTomorrow });
+      } else if (dayOfWeek === 6) {
+        events.push({ name: "Women's Prayer", time: "1:30 – 2:30 PM", tag: "Women", emoji: "💜", greeting: g(13), isTomorrow });
+        if (dayOfMonth > 7 && dayOfMonth <= 14) events.push({ name: "Prayer & Fasting", time: "Check GC", emoji: "🕊️", greeting: isTomorrow ? "Prepare your heart! 🕊️" : "Stay strong! 💪", isTomorrow });
+      }
+      return events;
+    };
+
+    const todayEvents = getEventsForDay(now.getDay(), now.getDate(), false);
+    if (todayEvents.length > 0) return todayEvents;
+
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return getEventsForDay(tomorrow.getDay(), tomorrow.getDate(), true);
+  }, []);
+
   const chapterCard = (
     bookName: string,
     chapterNumber: number,
@@ -314,6 +354,37 @@ const Checklist = () => {
             </div>
           </div>
         </div>
+
+        {/* Today's Schedule Banner */}
+        {todaysEvents.length > 0 && (
+          <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-3">
+            {todaysEvents.map((event, idx) => (
+              <div
+                key={idx}
+                className="relative rounded-[2rem] overflow-hidden bg-gradient-to-br from-amber-50/80 via-orange-50/50 to-yellow-50/80 border border-amber-100 p-6 shadow-sm"
+              >
+                {/* Decorative emoji background */}
+                <div className="absolute right-0 bottom-0 text-[100px] leading-none opacity-[0.04] pointer-events-none select-none translate-x-4 translate-y-4">
+                  {event.emoji}
+                </div>
+                
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-2xl bg-white shadow-sm border border-amber-100">
+                    <span className="text-2xl">{event.emoji}</span>
+                  </div>
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <p className="text-base font-bold text-stone-800 tracking-tight">{event.greeting}</p>
+                    <div className="flex items-center gap-2 text-[13px] font-medium text-stone-500">
+                      <span>{event.name}</span>
+                      <div className="w-1 h-1 rounded-full bg-stone-300" />
+                      <span>{event.time}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <div className="py-12 text-center text-stone-400 font-medium">Loading your progress...</div>
