@@ -30,6 +30,9 @@ export const testamentGroups = {
   "New Testament": bibleBooks.slice(39),
 };
 
+export const READING_START_DATE = new Date(2026, 1, 16); // Feb 16, 2026
+export const CHAPTERS_PER_DAY = 4;
+
 export type ReadingProgress = {
   id: string; user_id: string; book: string; chapter: number;
   completed: boolean; completed_at: string | null; created_at: string;
@@ -236,9 +239,14 @@ export const getUserReadingStats = async (userId: string) => {
     const totalBibleChapters = bibleBooks.reduce((sum, b) => sum + b.chapters, 0);
     const completionRate = totalBibleChapters > 0 ? Math.round((totalChaptersRead / totalBibleChapters) * 100) : 0;
 
-    return { totalChaptersRead, streakDays, lastReadDate, completionRate };
+    // Calculate schedule status
+    const daysSinceStart = Math.max(0, Math.floor((new Date().getTime() - READING_START_DATE.getTime()) / (1000 * 60 * 60 * 24)));
+    const expectedChapters = (daysSinceStart + 1) * CHAPTERS_PER_DAY;
+    const scheduleStatus = totalChaptersRead - expectedChapters;
+
+    return { totalChaptersRead, streakDays, lastReadDate, completionRate, scheduleStatus };
   } catch {
-    return { totalChaptersRead: 0, streakDays: 0, lastReadDate: null, completionRate: 0 };
+    return { totalChaptersRead: 0, streakDays: 0, lastReadDate: null, completionRate: 0, scheduleStatus: 0 };
   }
 };
 

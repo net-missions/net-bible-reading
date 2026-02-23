@@ -11,6 +11,7 @@ import {
 import {
   BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
+import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, isSameDay } from "date-fns";
@@ -20,7 +21,13 @@ const Statistics = () => {
   const { user, logout } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ totalChaptersRead: 0, streakDays: 0, lastReadDate: null as string | null, completionRate: 0 });
+  const [stats, setStats] = useState({ 
+    totalChaptersRead: 0, 
+    streakDays: 0, 
+    lastReadDate: null as string | null, 
+    completionRate: 0,
+    scheduleStatus: 0
+  });
   const [weeklyData, setWeeklyData] = useState<{ day: string; chapters: number; date: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -133,12 +140,26 @@ const Statistics = () => {
             </div>
           </Card>
 
-          <Card className="border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-xl sm:rounded-[2rem] p-4 sm:p-6 space-y-3 sm:space-y-4 border border-bible-red-light">
+          <Card className={cn(
+            "border-none shadow-[0_4px_20px_rgba(0,0,0,0.02)] bg-paper rounded-xl sm:rounded-[2rem] p-4 sm:p-6 space-y-3 sm:space-y-4 border",
+            stats.scheduleStatus > 0 ? "border-emerald-100 dark:border-emerald-900/30" : 
+            stats.scheduleStatus < 0 ? "border-bible-red-light" : "border-stone-100"
+          )}>
             <div className="h-10 w-10 rounded-xl bg-stone-50 flex items-center justify-center">
-              <BarChart className="h-5 w-5 text-bible-red" />
+              <BarChart className={cn(
+                "h-5 w-5",
+                stats.scheduleStatus > 0 ? "text-emerald-500" : 
+                stats.scheduleStatus < 0 ? "text-bible-red" : "text-stone-300"
+              )} />
             </div>
             <div>
-              <p className="text-2xl sm:text-3xl font-header font-semibold text-ink">-{stats.streakDays}</p>
+              <p className={cn(
+                "text-2xl sm:text-3xl font-header font-semibold",
+                stats.scheduleStatus > 0 ? "text-emerald-600" : 
+                stats.scheduleStatus < 0 ? "text-bible-red" : "text-ink"
+              )}>
+                {stats.scheduleStatus > 0 ? `+${stats.scheduleStatus}` : stats.scheduleStatus}
+              </p>
               <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Schedule Status</p>
             </div>
           </Card>

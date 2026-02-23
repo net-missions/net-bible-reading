@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { StreakAnimation } from "@/components/ui/StreakAnimation";
-import { bibleBooks, getUserReadingProgress, saveChapterCompletion, getUserReadingStats } from "@/services/bibleService";
+import { bibleBooks, getUserReadingProgress, saveChapterCompletion, getUserReadingStats, READING_START_DATE, CHAPTERS_PER_DAY } from "@/services/bibleService";
 
 const Checklist = () => {
   const { user } = useAuth();
@@ -158,9 +158,9 @@ const Checklist = () => {
     };
   }, [readingProgress]);
   
-  const startDate = new Date(2026, 1, 16); // Feb 16, 2026
+  const startDate = READING_START_DATE;
   const currentDay = Math.max(1, differenceInDays(new Date(), startDate) + 1);
-  const chaptersPerDay = 4;
+  const chaptersPerDay = CHAPTERS_PER_DAY;
 
   // Flat list of all chapters in reading order
   const allChaptersInOrder = useMemo(() => {

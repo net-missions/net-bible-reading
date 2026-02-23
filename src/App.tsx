@@ -1,10 +1,11 @@
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import SplashScreen from "@/components/SplashScreen";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -51,6 +52,16 @@ const AppRoutes = () => (
 
 const App = () => {
   const [error, setError] = useState<Error | null>(null);
+  const [showSplash, setShowSplash] = useState(() => {
+    // Only show splash once per browser session
+    if (sessionStorage.getItem("splashShown")) return false;
+    return true;
+  });
+
+  const handleSplashComplete = useCallback(() => {
+    sessionStorage.setItem("splashShown", "true");
+    setShowSplash(false);
+  }, []);
 
   useEffect(() => {
     const handler = (e: ErrorEvent) => { setError(e.error); };
@@ -76,6 +87,7 @@ const App = () => {
         <TooltipProvider>
           <LanguageProvider>
             <ThemeProvider>
+              {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
               <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm">Loading...</div>}>
                 <AuthProvider>
                   <AppRoutes />
