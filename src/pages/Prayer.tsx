@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPrayers, addPrayer, Prayer as PrayerType } from "@/services/prayerService";
+import { getPrayers, addPrayer, togglePrayerReaction, Prayer as PrayerType } from "@/services/prayerService";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,9 +25,59 @@ const Prayer = () => {
 
   const fetchPrayers = async () => {
     setIsLoading(true);
-    const data = await getPrayers();
+    const data = await getPrayers(user?.id);
     setPrayers(data);
     setIsLoading(false);
+  };
+
+  const handleToggleReaction = async (prayerId: string) => {
+    if (!user) {
+      toast({
+        title: "Please sign in",
+        description: "You need to be signed in to pray for someone.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Optimistic update
+    setPrayers((prev) => 
+      prev.map((p) => {
+        if (p.id === prayerId) {
+          const newUserHasReacted = !p.user_has_reacted;
+          return {
+            ...p,
+            user_has_reacted: newUserHasReacted,
+            reaction_count: (p.reaction_count || 0) + (newUserHasReacted ? 1 : -1)
+          };
+        }
+        return p;
+      })
+    );
+
+    const success = await togglePrayerReaction(prayerId, user.id);
+    if (!success) {
+      // Revert on failure
+      setPrayers((prev) => 
+        prev.map((p) => {
+          if (p.id === prayerId) {
+            const revertedUserHasReacted = !p.user_has_reacted;
+            return {
+              ...p,
+              user_has_reacted: revertedUserHasReacted,
+              reaction_count: (p.reaction_count || 0) + (revertedUserHasReacted ? 1 : -1)
+            };
+          }
+          return p;
+        })
+      );
+      
+      toast({
+        title: "Error",
+        description: "Failed to update reaction. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -163,33 +213,45 @@ const Prayer = () => {
                         className="border border-stone-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-[1.75rem] overflow-hidden bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 group"
                       >
                         <CardContent className="p-4 sm:p-5 space-y-3">
-                          <div className="flex justify-end items-start -mb-6">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-stone-400 hover:text-rose-500 hover:bg-rose-50 -mt-2 -mr-2 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100">
-                              <Heart className="h-4 w-4" />
-                              <span className="sr-only">Pray for this</span>
-                            </Button>
-                          </div>
-                          
                           <p className="text-stone-800 text-[1.02rem] leading-relaxed whitespace-pre-wrap font-medium">
                             "{prayer.content}"
                           </p>
                           
-                          <div className="flex items-center gap-2.5 pt-3 border-t border-stone-100 mt-3">
-                            <div className="h-7 w-7 rounded-full bg-stone-100 flex items-center justify-center shrink-0">
-                               <span className="text-[10px] font-bold text-stone-500">
-                                 {prayer.is_anonymous || !prayer.profiles?.first_name ? "?" : prayer.profiles.first_name.charAt(0)}
-                               </span>
+                          <div className="flex items-center justify-between pt-3 border-t border-stone-100 mt-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="h-7 w-7 rounded-full bg-stone-100 flex items-center justify-center shrink-0">
+                                 <span className="text-[10px] font-bold text-stone-500">
+                                   {prayer.is_anonymous || !prayer.profiles?.first_name ? "?" : prayer.profiles.first_name.charAt(0)}
+                                 </span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-stone-600 leading-tight">
+                                  {prayer.is_anonymous || !prayer.profiles?.first_name
+                                    ? "Anonymous"
+                                    : `${prayer.profiles.first_name} ${prayer.profiles.last_name || ""}`.trim()}
+                                </span>
+                                <time className="text-[10px] font-medium text-stone-400 uppercase tracking-tight">
+                                   {format(new Date(prayer.created_at), "MMM d, yyyy")}
+                                </time>
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs font-semibold text-stone-600 leading-tight">
-                                {prayer.is_anonymous || !prayer.profiles?.first_name
-                                  ? "Anonymous"
-                                  : `${prayer.profiles.first_name} ${prayer.profiles.last_name || ""}`.trim()}
-                              </span>
-                              <time className="text-[10px] font-medium text-stone-400 uppercase tracking-tight">
-                                 {format(new Date(prayer.created_at), "MMM d, yyyy")}
-                              </time>
-                            </div>
+
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleToggleReaction(prayer.id)}
+                              className={`h-8 rounded-full flex items-center gap-1.5 transition-all px-2.5 ${
+                                prayer.user_has_reacted 
+                                  ? "text-rose-500 bg-rose-50 hover:bg-rose-100" 
+                                  : "text-stone-400 hover:text-rose-500 hover:bg-rose-50"
+                              }`}
+                            >
+                              <Heart className={`h-3.5 w-3.5 ${prayer.user_has_reacted ? "fill-current" : ""}`} />
+                              {prayer.reaction_count && prayer.reaction_count > 0 ? (
+                                <span className="text-xs font-bold leading-none">{prayer.reaction_count}</span>
+                              ) : null}
+                              <span className="sr-only">Pray for this</span>
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>

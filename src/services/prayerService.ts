@@ -10,9 +10,11 @@ export type Prayer = {
     first_name: string;
     last_name: string;
   } | null;
+  reaction_count?: number;
+  user_has_reacted?: boolean;
 };
 
-export const getPrayers = async (): Promise<Prayer[]> => {
+export const getPrayers = async (currentUserId?: string): Promise<Prayer[]> => {
   try {
     const { data, error } = await supabase
       .from("prayers" as any)
@@ -25,6 +27,9 @@ export const getPrayers = async (): Promise<Prayer[]> => {
         profiles (
           first_name,
           last_name
+        ),
+        prayer_reactions (
+          user_id
         )
       `)
       .order("created_at", { ascending: false });
@@ -32,13 +37,57 @@ export const getPrayers = async (): Promise<Prayer[]> => {
     if (error) throw error;
     
     // Typecast because Supabase might return array for joins depending on schema relations
-    return (data as any[]).map((p: any) => ({
-      ...p,
-      profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles
-    })) as Prayer[];
+    return (data as any[]).map((p: any) => {
+      const reactions = Array.isArray(p.prayer_reactions) ? p.prayer_reactions : [];
+      return {
+        ...p,
+        profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
+        reaction_count: reactions.length,
+        user_has_reacted: currentUserId ? reactions.some((r: any) => r.user_id === currentUserId) : false
+      };
+    }) as Prayer[];
   } catch (error) {
     console.error("Error fetching prayers:", error);
     return [];
+  }
+};
+
+export const togglePrayerReaction = async (prayerId: string, userId: string): Promise<boolean> => {
+  try {
+    // Check if reaction exists
+    const { data: existing, error: checkError } = await supabase
+      .from("prayer_reactions" as any)
+      .select("id")
+      .eq("prayer_id", prayerId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (existing) {
+      // Remove reaction
+      const { error: deleteError } = await supabase
+        .from("prayer_reactions" as any)
+        .delete()
+        .eq("id", (existing as any).id);
+      
+      if (deleteError) throw deleteError;
+    } else {
+      // Add reaction
+      const { error: insertError } = await supabase
+        .from("prayer_reactions" as any)
+        .insert({
+          prayer_id: prayerId,
+          user_id: userId
+        });
+      
+      if (insertError) throw insertError;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error toggling prayer reaction:", error);
+    return false;
   }
 };
 
