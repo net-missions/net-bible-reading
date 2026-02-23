@@ -369,9 +369,6 @@ const Checklist = () => {
                 </div>
                 
                 <div className="relative z-10 flex items-center gap-4">
-                  <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-2xl bg-white shadow-sm border border-amber-100">
-                    <span className="text-2xl">{event.emoji}</span>
-                  </div>
                   <div className="space-y-1 min-w-0 flex-1">
                     <p className="text-base font-bold text-stone-800 tracking-tight">{event.greeting}</p>
                     <div className="flex items-center gap-2 text-[13px] font-medium text-stone-500">
