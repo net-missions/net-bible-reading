@@ -12,6 +12,7 @@ import Checklist from "./pages/Checklist";
 import History from "./pages/History";
 import Statistics from "./pages/Statistics";
 import Prayer from "./pages/Prayer";
+import Insights from "./pages/Insights";
 import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import Setup from "./pages/Setup";
@@ -38,6 +39,7 @@ const AppRoutes = () => (
     <Route path="/debug" element={<Debug />} />
     <Route path="/checklist" element={<ProtectedRoute><Checklist /></ProtectedRoute>} />
     <Route path="/prayer" element={<ProtectedRoute><Prayer /></ProtectedRoute>} />
+    <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
     <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
     <Route path="/statistics" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
     <Route path="/stats" element={<Navigate to="/statistics" replace />} />
