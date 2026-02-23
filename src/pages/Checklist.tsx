@@ -175,14 +175,20 @@ const Checklist = () => {
 
   useEffect(() => {
     if (!loading && Object.keys(readingProgress).length > 0 && !isInitialized && allChaptersInOrder.length > 0) {
+      const calDayStartIdx = (currentDay - 1) * chaptersPerDay;
       const firstUnreadIdx = allChaptersInOrder.findIndex(
         (ch) => !readingProgress[ch.bookName]?.[ch.chapterNumber]
       );
+      
       if (firstUnreadIdx !== -1) {
-        // Start exactly at the first unread chapter, no floor alignment
-        setActiveStartIndex(firstUnreadIdx);
+        // If the user is behind the calendar schedule, show the first unread chapter (catch-up mode)
+        // If the user is caught up or ahead, anchor to the current calendar day's chapters
+        // This prevents the "Day bump" within the same calendar day.
+        const initialIdx = Math.min(firstUnreadIdx, calDayStartIdx);
+        setActiveStartIndex(initialIdx);
       } else {
-        setActiveStartIndex(allChaptersInOrder.length - 1);
+        // If all chapters are read, stay on the current calendar day's chapters
+        setActiveStartIndex(Math.min(allChaptersInOrder.length - 1, calDayStartIdx));
       }
       setIsInitialized(true);
     }
