@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPrayers, addPrayer, updatePrayer, togglePrayerReaction, Prayer as PrayerType } from "@/services/prayerService";
+import { getPrayers, addPrayer, updatePrayer, togglePrayerReaction, addPrayerComment, deletePrayerComment, Prayer as PrayerType } from "@/services/prayerService";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { format, isToday, isYesterday, isThisWeek } from "date-fns";
-import { MessageSquarePlus, Heart, Edit2, X, Check } from "lucide-react";
+import { MessageSquarePlus, Heart, Edit2, X, Check, MessageCircle, Send, Trash2 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const Prayer = () => {
@@ -21,6 +21,10 @@ const Prayer = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [editIsAnonymous, setEditIsAnonymous] = useState(false);
+  
+  const [commentContent, setCommentContent] = useState<Record<string, string>>({});
+  const [showComments, setShowComments] = useState<Record<string, boolean>>({});
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   useEffect(() => {
     fetchPrayers();
@@ -141,6 +145,53 @@ const Prayer = () => {
       });
     }
     setIsSubmitting(false);
+  };
+
+  const toggleComments = (prayerId: string) => {
+    setShowComments(prev => ({ ...prev, [prayerId]: !prev[prayerId] }));
+  };
+
+  const handleCommentSubmit = async (prayerId: string) => {
+    const text = commentContent[prayerId];
+    if (!text?.trim() || !user) return;
+    
+    setIsSubmittingComment(true);
+    const success = await addPrayerComment(prayerId, user.id, text.trim());
+    
+    if (success) {
+      toast({
+        title: "Comment added",
+        description: "Your comment has been shared.",
+      });
+      setCommentContent(prev => ({ ...prev, [prayerId]: "" }));
+      fetchPrayers();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to submit comment. Please try again.",
+        variant: "destructive",
+      });
+    }
+    setIsSubmittingComment(false);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+    
+    const success = await deletePrayerComment(commentId);
+    if (success) {
+      toast({
+        title: "Comment deleted",
+        description: "Your comment has been removed.",
+      });
+      fetchPrayers();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete comment. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const groupedPrayers = () => {
@@ -335,6 +386,19 @@ const Prayer = () => {
                                 </Button>
                               )}
                               
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleComments(prayer.id)}
+                                className={`h-8 rounded-full flex items-center gap-1.5 transition-all px-2.5 text-stone-400 hover:text-stone-900 hover:bg-stone-50 ${showComments[prayer.id] ? "bg-stone-50 text-stone-900" : ""}`}
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                {prayer.comments && prayer.comments.length > 0 ? (
+                                  <span className="text-xs font-bold leading-none">{prayer.comments.length}</span>
+                                ) : null}
+                                <span className="sr-only">Toggle comments</span>
+                              </Button>
+
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -353,6 +417,84 @@ const Prayer = () => {
                               </Button>
                             </div>
                           </div>
+
+                          {/* Comments Section */}
+                          {showComments[prayer.id] && (
+                            <div className="mt-4 pt-4 border-t border-stone-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                              {prayer.comments && prayer.comments.length > 0 ? (
+                                <div className="space-y-3">
+                                  {prayer.comments.map((comment) => (
+                                    <div key={comment.id} className="flex gap-3 group/comment bg-stone-50/50 p-3 rounded-2xl">
+                                      <div className="h-7 w-7 rounded-full bg-stone-200 flex items-center justify-center shrink-0 mt-0.5">
+                                        <span className="text-[10px] font-bold text-stone-500">
+                                          {comment.profiles?.first_name ? comment.profiles.first_name.charAt(0) : "?"}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-baseline justify-between gap-2">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="text-xs font-semibold text-stone-700">
+                                              {comment.profiles?.first_name 
+                                                ? `${comment.profiles.first_name} ${comment.profiles.last_name || ""}`.trim() 
+                                                : "User"}
+                                            </span>
+                                            <span className="text-[10px] text-stone-400 font-medium whitespace-nowrap">
+                                              {format(new Date(comment.created_at), "MMM d, h:mm a")}
+                                            </span>
+                                          </div>
+                                          {user && comment.user_id === user.id && (
+                                            <button 
+                                              onClick={() => handleDeleteComment(comment.id)}
+                                              className="text-stone-400 hover:text-rose-500 opacity-0 group-hover/comment:opacity-100 transition-opacity p-1 -mr-1"
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <p className="text-sm text-stone-600 mt-0.5 leading-relaxed break-words">
+                                          {comment.content}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-center py-2">
+                                  <p className="text-xs text-stone-400 font-medium">No comments yet. Be the first to encourage!</p>
+                                </div>
+                              )}
+
+                              {user ? (
+                                <div className="flex gap-2 items-end pt-1">
+                                  <Textarea 
+                                    value={commentContent[prayer.id] || ""}
+                                    onChange={(e) => setCommentContent(prev => ({ ...prev, [prayer.id]: e.target.value }))}
+                                    placeholder="Write a comment of encouragement..."
+                                    className="min-h-[40px] h-[40px] resize-none border-stone-200 focus:border-stone-300 rounded-2xl bg-white text-sm py-2.5 px-3 flex-1"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleCommentSubmit(prayer.id);
+                                      }
+                                    }}
+                                  />
+                                  <Button 
+                                    onClick={() => handleCommentSubmit(prayer.id)}
+                                    disabled={!commentContent[prayer.id]?.trim() || isSubmittingComment}
+                                    size="icon"
+                                    className="h-10 w-10 shrink-0 rounded-full bg-stone-900 hover:bg-stone-800 text-white shadow-sm"
+                                  >
+                                    <Send className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="text-center py-2.5 bg-stone-50 rounded-xl border border-stone-100">
+                                  <p className="text-xs text-stone-500 font-medium">Sign in to leave a comment</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                         </CardContent>
                       </Card>
                     ))}

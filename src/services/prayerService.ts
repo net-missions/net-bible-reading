@@ -1,5 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export type PrayerComment = {
+  id: string;
+  prayer_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles?: {
+    first_name: string;
+    last_name: string;
+  } | null;
+};
+
 export type Prayer = {
   id: string;
   user_id: string | null;
@@ -12,6 +24,7 @@ export type Prayer = {
   } | null;
   reaction_count?: number;
   user_has_reacted?: boolean;
+  comments?: PrayerComment[];
 };
 
 export const getPrayers = async (currentUserId?: string): Promise<Prayer[]> => {
@@ -30,6 +43,17 @@ export const getPrayers = async (currentUserId?: string): Promise<Prayer[]> => {
         ),
         prayer_reactions (
           user_id
+        ),
+        prayer_comments (
+          id,
+          prayer_id,
+          user_id,
+          content,
+          created_at,
+          profiles (
+            first_name,
+            last_name
+          )
         )
       `)
       .order("created_at", { ascending: false });
@@ -39,11 +63,19 @@ export const getPrayers = async (currentUserId?: string): Promise<Prayer[]> => {
     // Typecast because Supabase might return array for joins depending on schema relations
     return (data as any[]).map((p: any) => {
       const reactions = Array.isArray(p.prayer_reactions) ? p.prayer_reactions : [];
+      let comments = Array.isArray(p.prayer_comments) ? p.prayer_comments : [];
+      
+      comments = comments.map((c: any) => ({
+        ...c,
+        profiles: Array.isArray(c.profiles) ? c.profiles[0] : c.profiles
+      })).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
       return {
         ...p,
         profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
         reaction_count: reactions.length,
-        user_has_reacted: currentUserId ? reactions.some((r: any) => r.user_id === currentUserId) : false
+        user_has_reacted: currentUserId ? reactions.some((r: any) => r.user_id === currentUserId) : false,
+        comments
       };
     }) as Prayer[];
   } catch (error) {
@@ -129,6 +161,39 @@ export const updatePrayer = async (prayerId: string, content: string, isAnonymou
     return true;
   } catch (error) {
     console.error("Error updating prayer:", error);
+    return false;
+  }
+};
+
+export const addPrayerComment = async (prayerId: string, userId: string, content: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from("prayer_comments" as any)
+      .insert({
+        prayer_id: prayerId,
+        user_id: userId,
+        content
+      });
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error adding prayer comment:", error);
+    return false;
+  }
+};
+
+export const deletePrayerComment = async (commentId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from("prayer_comments" as any)
+      .delete()
+      .eq("id", commentId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error deleting prayer comment:", error);
     return false;
   }
 };
