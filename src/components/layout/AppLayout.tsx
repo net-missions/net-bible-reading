@@ -1,10 +1,12 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Book, Calendar, BarChart, Settings, Heart, Lightbulb } from "lucide-react";
+import { Book, Clock, BarChart, Settings, HandHeart, Sparkles, BookOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 type NavLink = { name: string; path: string; icon: React.ReactNode };
+
+
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { profile, isAdmin } = useAuth();
@@ -14,15 +16,16 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isHistoryOrStats = location.pathname === "/history" || location.pathname === "/statistics";
 
   const navLinks: NavLink[] = [
-    { name: "Reading", path: "/checklist", icon: <Book className="h-5 w-5" /> },
-    { name: "Prayer", path: "/prayer", icon: <Heart className="h-5 w-5" /> },
-    { name: "Insights", path: "/insights", icon: <Lightbulb className="h-5 w-5" /> },
-    { name: "History", path: "/history", icon: <Calendar className="h-5 w-5" /> },
-    { name: "Stats", path: "/statistics", icon: <BarChart className="h-5 w-5" /> },
+    { name: "Reading", path: "/checklist", icon: <Book className="h-6 w-6" strokeWidth={2.5} /> },
+    { name: "Bible", path: "/bible", icon: <BookOpen className="h-6 w-6" strokeWidth={2.5} /> },
+    { name: "Prayer", path: "/prayer", icon: <HandHeart className="h-6 w-6" strokeWidth={2.5} /> },
+    { name: "Insights", path: "/insights", icon: <Sparkles className="h-6 w-6" strokeWidth={2.5} /> },
+    { name: "History", path: "/history", icon: <Clock className="h-6 w-6" strokeWidth={2.5} /> },
+    { name: "Stats", path: "/statistics", icon: <BarChart className="h-6 w-6" strokeWidth={2.5} /> },
   ];
 
   const desktopLinks = [...navLinks];
-  if (isAdmin) desktopLinks.push({ name: "Admin", path: "/admin", icon: <Settings className="h-5 w-5" /> });
+  if (isAdmin) desktopLinks.push({ name: "Admin", path: "/admin", icon: <Settings className="h-6 w-6" strokeWidth={2.5} /> });
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -64,36 +67,32 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {children}
       </main>
 
-      {/* Mobile bottom nav: Floating active style (Icons Only) */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t border-stone-800 px-2 sm:px-4 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)] z-50 flex justify-around items-center lg:hidden">
+      {/* Mobile bottom nav: Icons with labels */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 px-1 sm:px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.08)] z-50 flex justify-around items-center lg:hidden">
         {desktopLinks.map((link) => {
           const active = isActive(link.path);
           return (
             <button
               key={link.path}
               onClick={() => navigate(link.path)}
-              className="relative flex items-center justify-center p-2 min-w-[64px] h-[56px]"
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 py-1 px-2 min-w-0 flex-1 rounded-lg transition-colors",
+                active ? "text-bible-red" : "text-stone-800 hover:text-stone-600"
+              )}
               aria-label={link.name}
             >
-              {/* Active Bubble Background (Creates the visual "notch" effect) */}
-              <div 
-                className={cn(
-                  "absolute flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-                  active 
-                    ? "-top-6 bg-bible-red shadow-[0_4px_12px_rgba(225,29,72,0.4)] ring-[6px] ring-background w-[56px] h-[56px]" 
-                    : "top-1/2 -translate-y-1/2 bg-transparent w-12 h-12"
-                )}
-              >
-                {React.cloneElement(link.icon as React.ReactElement, {
-                  className: cn(
-                    "transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]", 
-                    active ? "h-6 w-6 text-white scale-110" : "h-6 w-6 text-stone-400"
-                  ),
-                })}
-              </div>
-
-              {/* Inactive Hover Target (Larger hit area) */}
-              <div className="absolute inset-0 rounded-xl hover:bg-stone-800/30 transition-colors pointer-events-none" />
+              {React.cloneElement(link.icon as React.ReactElement, {
+                className: cn(
+                  "h-6 w-6 transition-colors",
+                  active ? "text-bible-red" : "text-stone-800"
+                ),
+              })}
+              <span className={cn(
+                "text-[10px] font-semibold leading-tight",
+                active ? "text-bible-red" : "text-stone-800"
+              )}>
+                {link.name}
+              </span>
             </button>
           );
         })}

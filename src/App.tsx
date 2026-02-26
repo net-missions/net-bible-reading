@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Setup from "./pages/Setup";
 import NotFound from "./pages/NotFound";
 import Debug from "./pages/Debug";
+import BibleReader from "./pages/BibleReader";
 import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const AppRoutes = () => (
     <Route path="/statistics" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
     <Route path="/stats" element={<Navigate to="/statistics" replace />} />
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+    <Route path="/bible" element={<ProtectedRoute><BibleReader /></ProtectedRoute>} />
     <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
