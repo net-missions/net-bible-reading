@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import { bibleBooks, testamentGroups } from "@/services/bibleService";
 import {
@@ -21,8 +22,14 @@ import {
 import { cn } from "@/lib/utils";
 
 const BibleReader: React.FC = () => {
-  const [selectedBook, setSelectedBook] = useState("Genesis");
-  const [selectedChapter, setSelectedChapter] = useState(1);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const initialBook = searchParams.get("book") || "Genesis";
+  const initialChapter = parseInt(searchParams.get("chapter") || "1", 10);
+
+  const [selectedBook, setSelectedBook] = useState(initialBook);
+  const [selectedChapter, setSelectedChapter] = useState(initialChapter);
   const [translation, setTranslation] = useState<BibleTranslation>("niv");
   const [verses, setVerses] = useState<BibleVerse[]>([]);
   const [copyright, setCopyright] = useState<string | null>(null);
@@ -159,6 +166,9 @@ const BibleReader: React.FC = () => {
     setSelectedChapter(chapter);
     setShowBookDropdown(false);
     setShowChapterGrid(false);
+    
+    // Update URL params
+    setSearchParams({ book, chapter: chapter.toString() });
   };
 
   const goPrev = () => {
@@ -333,9 +343,7 @@ const BibleReader: React.FC = () => {
             </button>
 
             {showChapterGrid && (
-              <div className="fixed inset-x-4 top-auto z-50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-72 bg-white rounded-2xl shadow-2xl border border-stone-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
-                style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)' }}
-              >
+              <div className="absolute right-0 top-11 z-50 w-72 bg-white rounded-2xl shadow-2xl border border-stone-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="p-3 border-b border-stone-100">
                   <p className="text-xs font-bold text-stone-500 uppercase tracking-wide">
                     {selectedBook} — {totalChapters} Chapters

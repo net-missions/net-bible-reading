@@ -4,7 +4,7 @@ import { Book, Clock, BarChart, Settings, HandHeart, Sparkles, BookOpen } from "
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
-type NavLink = { name: string; path: string; icon: React.ReactNode };
+type NavLink = { name: string; path: string; icon: React.ElementType };
 
 
 
@@ -16,16 +16,16 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isHistoryOrStats = location.pathname === "/history" || location.pathname === "/statistics";
 
   const navLinks: NavLink[] = [
-    { name: "Reading", path: "/checklist", icon: <Book className="h-6 w-6" strokeWidth={2.5} /> },
-    { name: "Bible", path: "/bible", icon: <BookOpen className="h-6 w-6" strokeWidth={2.5} /> },
-    { name: "Prayer", path: "/prayer", icon: <HandHeart className="h-6 w-6" strokeWidth={2.5} /> },
-    { name: "Insights", path: "/insights", icon: <Sparkles className="h-6 w-6" strokeWidth={2.5} /> },
-    { name: "History", path: "/history", icon: <Clock className="h-6 w-6" strokeWidth={2.5} /> },
-    { name: "Stats", path: "/statistics", icon: <BarChart className="h-6 w-6" strokeWidth={2.5} /> },
+    { name: "Reading", path: "/checklist", icon: Book },
+    { name: "Bible", path: "/bible", icon: BookOpen },
+    { name: "Prayer", path: "/prayer", icon: HandHeart },
+    { name: "Insights", path: "/insights", icon: Sparkles },
+    { name: "History", path: "/history", icon: Clock },
+    { name: "Stats", path: "/statistics", icon: BarChart },
   ];
 
   const desktopLinks = [...navLinks];
-  if (isAdmin) desktopLinks.push({ name: "Admin", path: "/admin", icon: <Settings className="h-6 w-6" strokeWidth={2.5} /> });
+  if (isAdmin) desktopLinks.push({ name: "Admin", path: "/admin", icon: Settings });
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -37,6 +37,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <nav className="flex-1 px-3 space-y-0.5">
             {desktopLinks.map((link) => {
               const active = isActive(link.path);
+              const Icon = link.icon;
               return (
                 <button
                   key={link.path}
@@ -48,7 +49,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                       : "text-stone-600 hover:bg-stone-100 hover:text-ink dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                   )}
                 >
-                  {link.icon}
+                  <Icon className="h-6 w-6" strokeWidth={active ? 2.5 : 2} />
                   <span>{link.name}</span>
                 </button>
               );
@@ -71,6 +72,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 px-1 sm:px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.08)] z-50 flex justify-around items-center lg:hidden">
         {desktopLinks.map((link) => {
           const active = isActive(link.path);
+          const Icon = link.icon;
           return (
             <button
               key={link.path}
@@ -81,15 +83,16 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               )}
               aria-label={link.name}
             >
-              {React.cloneElement(link.icon as React.ReactElement, {
-                className: cn(
+              <Icon 
+                className={cn(
                   "h-6 w-6 transition-colors",
                   active ? "text-bible-red" : "text-stone-800"
-                ),
-              })}
+                )}
+                strokeWidth={active ? 2.5 : 2}
+              />
               <span className={cn(
-                "text-[10px] font-semibold leading-tight",
-                active ? "text-bible-red" : "text-stone-800"
+                "text-[10px] leading-tight transition-all",
+                active ? "text-bible-red font-bold" : "text-stone-800 font-medium"
               )}>
                 {link.name}
               </span>

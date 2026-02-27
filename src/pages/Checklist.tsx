@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { StreakAnimation } from "@/components/ui/StreakAnimation";
 import { bibleBooks, getUserReadingProgress, saveChapterCompletion, getUserReadingStats, READING_START_DATE, CHAPTERS_PER_DAY } from "@/services/bibleService";
 
 const Checklist = () => {
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [readingProgress, setReadingProgress] = useState<Record<string, Record<number, boolean>>>({});
   const [stats, setStats] = useState({
@@ -174,25 +176,12 @@ const Checklist = () => {
   }, []);
 
   useEffect(() => {
-    if (!loading && Object.keys(readingProgress).length > 0 && !isInitialized && allChaptersInOrder.length > 0) {
+    if (!loading && !isInitialized && allChaptersInOrder.length > 0) {
       const calDayStartIdx = (currentDay - 1) * chaptersPerDay;
-      const firstUnreadIdx = allChaptersInOrder.findIndex(
-        (ch) => !readingProgress[ch.bookName]?.[ch.chapterNumber]
-      );
-      
-      if (firstUnreadIdx !== -1) {
-        // If the user is behind the calendar schedule, show the first unread chapter (catch-up mode)
-        // If the user is caught up or ahead, anchor to the current calendar day's chapters
-        // This prevents the "Day bump" within the same calendar day.
-        const initialIdx = Math.min(firstUnreadIdx, calDayStartIdx);
-        setActiveStartIndex(initialIdx);
-      } else {
-        // If all chapters are read, stay on the current calendar day's chapters
-        setActiveStartIndex(Math.min(allChaptersInOrder.length - 1, calDayStartIdx));
-      }
+      setActiveStartIndex(Math.min(allChaptersInOrder.length - 1, calDayStartIdx));
       setIsInitialized(true);
     }
-  }, [loading, readingProgress, isInitialized, allChaptersInOrder, chaptersPerDay]);
+  }, [loading, isInitialized, allChaptersInOrder, chaptersPerDay, currentDay]);
 
   // Today's chapters
   const todaysChapters = useMemo(() => {
@@ -202,10 +191,22 @@ const Checklist = () => {
 
   // Missed Chapters Logic
   const missedChapters = useMemo(() => {
-    // If the schedule is completely dynamic based on progress, "missed chapters"
-    // is no longer a concept since you just keep reading the next unread ones.
-    return [];
-  }, []);
+    if (!isInitialized) return [];
+    
+    // Calculate calendar day start index
+    const calDayStartIdx = (currentDay - 1) * chaptersPerDay;
+    
+    // Everything before calDayStartIdx that is NOT read
+    const missed: { bookName: string; chapterNumber: number }[] = [];
+    
+    for (let i = 0; i < calDayStartIdx && i < allChaptersInOrder.length; i++) {
+       const ch = allChaptersInOrder[i];
+       if (!readingProgress[ch.bookName]?.[ch.chapterNumber]) {
+          missed.push(ch);
+       }
+    }
+    return missed;
+  }, [isInitialized, currentDay, chaptersPerDay, allChaptersInOrder, readingProgress]);
 
   // Weekly Progress (Last 7 Days)
   const weeklyProgress = useMemo(() => {
@@ -253,14 +254,21 @@ const Checklist = () => {
       : 'friend';
 
     const getGreeting = (startHour: number) => {
-      if (hour >= startHour + 1) return `Hope it blessed you, ${firstName}! 🙌`;
-      if (hour >= startHour) return "Happening now! 🔥";
-      if (hour >= startHour - 2) return "Almost time! 👋";
-      return `See you later, ${firstName}! ✨`;
+      if (hour >= startHour + 1) return `Hope it blessed you, ${firstName}!`;
+      if (hour >= startHour) return "Happening now!";
+      if (hour >= startHour - 2) return "Almost time!";
+      return `See you later, ${firstName}!`;
     };
 
     const getEventsForDay = (dayOfWeek: number, dayOfMonth: number, isTomorrow: boolean) => {
-      const events: { name: string; time: string; tag?: string; emoji: string; greeting: string; isTomorrow: boolean }[] = [];
+      const events: { 
+        name: string; 
+        time: string; 
+        items?: { name: string; time: string; tag?: string }[];
+        emoji: string; 
+        greeting: string; 
+        isTomorrow: boolean 
+      }[] = [];
       const g = (h: number) => isTomorrow ? `See you tomorrow, ${firstName}!` : getGreeting(h);
 
       if (dayOfWeek === 0) {
@@ -271,8 +279,18 @@ const Checklist = () => {
       } else if (dayOfWeek === 3) {
         events.push({ name: "Midweek Service", time: "5:30 – 6:30 PM", emoji: "📖", greeting: g(17), isTomorrow });
       } else if (dayOfWeek === 6) {
-        events.push({ name: "Women's Prayer", time: "1:30 – 2:30 PM", tag: "Women", emoji: "💜", greeting: g(13), isTomorrow });
-        if (dayOfMonth > 7 && dayOfMonth <= 14) events.push({ name: "Prayer & Fasting", time: "Check GC", emoji: "🕊️", greeting: isTomorrow ? "Prepare your heart! 🕊️" : "Stay strong! 💪", isTomorrow });
+        events.push({ 
+          name: "Saturday Schedule", 
+          time: "", 
+          items: [
+            { name: "Women's Prayer", time: "1:30 – 2:30 PM", tag: "Women" },
+            { name: "Younite", time: "2:30 – 5:00 PM" }
+          ],
+          emoji: "❤️", 
+          greeting: g(13), 
+          isTomorrow 
+        });
+        if (dayOfMonth > 7 && dayOfMonth <= 14) events.push({ name: "Prayer & Fasting", time: "Check GC", emoji: "🕊️", greeting: isTomorrow ? "Prepare your heart!" : "Stay strong!", isTomorrow });
       }
       return events;
     };
@@ -371,11 +389,30 @@ const Checklist = () => {
                 <div className="relative z-10 flex items-center gap-4">
                   <div className="space-y-1 min-w-0 flex-1">
                     <p className="text-base font-bold text-stone-800 tracking-tight">{event.greeting}</p>
-                    <div className="flex items-center gap-2 text-[13px] font-medium text-stone-500">
-                      <span>{event.name}</span>
-                      <div className="w-1 h-1 rounded-full bg-stone-300" />
-                      <span>{event.time}</span>
-                    </div>
+                    {event.items ? (
+                      <div className="space-y-1">
+                        {event.items.map((item, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[13px] font-medium text-stone-500">
+                             <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="truncate">{item.name}</span>
+                                {item.tag && (
+                                  <span className="hidden sm:inline-block text-[9px] font-bold uppercase tracking-wider text-purple-500/70 bg-purple-50 px-1.5 py-0.5 rounded-md border border-purple-100">
+                                    {item.tag}
+                                  </span>
+                                )}
+                             </div>
+                            <div className="w-1 h-1 rounded-full bg-stone-300 shrink-0" />
+                            <span className="shrink-0">{item.time}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-[13px] font-medium text-stone-500">
+                        <span>{event.name}</span>
+                        <div className="w-1 h-1 rounded-full bg-stone-300" />
+                        <span>{event.time}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -411,8 +448,8 @@ const Checklist = () => {
                                 {chapterCard(
                                   ch.bookName,
                                   ch.chapterNumber,
-                                  `Missed from Day ${Math.ceil((allChaptersInOrder.findIndex(c => c.bookName === ch.bookName && c.chapterNumber === ch.chapterNumber) / chaptersPerDay) + 1)}`,
-                                  () => handleCheckboxChange(ch.bookName, ch.chapterNumber, true),
+                                  `${ch.bookName} ${ch.chapterNumber}`,
+                                  () => navigate(`/bible?book=${ch.bookName}&chapter=${ch.chapterNumber}`),
                                   undefined,
                                   true
                                 )}
