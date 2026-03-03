@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { getInsights, addInsight, toggleInsightReaction, Insight as InsightType } from "@/services/insightService";
+import { getInsights, addInsight, updateInsight, toggleInsightReaction, addInsightComment, deleteInsightComment, Insight as InsightType } from "@/services/insightService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { format, isToday, isYesterday, isThisWeek } from "date-fns";
-import { Lightbulb, Heart, MessageSquarePlus } from "lucide-react";
+import { Lightbulb, Heart, MessageSquarePlus, Edit2, X, MessageCircle, Send, Trash2 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const Insights = () => {
@@ -18,6 +18,13 @@ const Insights = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editIsAnonymous, setEditIsAnonymous] = useState(false);
+  
+  const [commentContent, setCommentContent] = useState<Record<string, string>>({});
+  const [showComments, setShowComments] = useState<Record<string, boolean>>({});
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   useEffect(() => {
     fetchInsights();
@@ -103,6 +110,88 @@ const Insights = () => {
       });
     }
     setIsSubmitting(false);
+  };
+
+  const startEditing = (insight: InsightType) => {
+    setEditingId(insight.id);
+    setEditContent(insight.content);
+    setEditIsAnonymous(insight.is_anonymous);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditContent("");
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editContent.trim() || !user || !editingId) return;
+    
+    setIsSubmitting(true);
+    const success = await updateInsight(editingId, editContent.trim(), editIsAnonymous);
+    
+    if (success) {
+      toast({
+        title: "Insight updated",
+        description: "Your spiritual insight has been updated.",
+      });
+      setEditingId(null);
+      fetchInsights();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update your insight. Please try again.",
+        variant: "destructive",
+      });
+    }
+    setIsSubmitting(false);
+  };
+
+  const toggleComments = (insightId: string) => {
+    setShowComments(prev => ({ ...prev, [insightId]: !prev[insightId] }));
+  };
+
+  const handleCommentSubmit = async (insightId: string) => {
+    const text = commentContent[insightId];
+    if (!text?.trim() || !user) return;
+    
+    setIsSubmittingComment(true);
+    const success = await addInsightComment(insightId, user.id, text.trim());
+    
+    if (success) {
+      toast({
+        title: "Comment added",
+        description: "Your comment has been shared.",
+      });
+      setCommentContent(prev => ({ ...prev, [insightId]: "" }));
+      fetchInsights();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to submit comment. Please try again.",
+        variant: "destructive",
+      });
+    }
+    setIsSubmittingComment(false);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+    
+    const success = await deleteInsightComment(commentId);
+    if (success) {
+      toast({
+        title: "Comment deleted",
+        description: "Your comment has been removed.",
+      });
+      fetchInsights();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete comment. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const groupedInsights = () => {
@@ -212,9 +301,57 @@ const Insights = () => {
                         className="border border-stone-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-[1.75rem] overflow-hidden bg-white hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 group"
                       >
                         <CardContent className="p-4 sm:p-5 space-y-3">
-                          <p className="text-stone-800 text-[1.02rem] leading-relaxed whitespace-pre-wrap font-medium">
-                            "{insight.content}"
-                          </p>
+                          {editingId === insight.id ? (
+                            <form onSubmit={handleUpdate} className="space-y-3">
+                              <Textarea 
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="min-h-[100px] resize-none border-stone-200 focus:border-stone-300 rounded-xl bg-stone-50/50 p-3 text-sm"
+                                placeholder="Edit your insight..."
+                                autoFocus
+                              />
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`edit-anon-${insight.id}`}
+                                    checked={editIsAnonymous} 
+                                    onCheckedChange={(c) => setEditIsAnonymous(c as boolean)} 
+                                    className="h-4 w-4 data-[state=checked]:bg-stone-800 data-[state=checked]:border-stone-800"
+                                  />
+                                  <label 
+                                    htmlFor={`edit-anon-${insight.id}`}
+                                    className="text-xs font-medium text-stone-600 cursor-pointer select-none"
+                                  >
+                                    Post anonymously
+                                  </label>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={cancelEditing}
+                                    className="h-8 rounded-full px-3 text-stone-500"
+                                  >
+                                    <X className="h-3.5 w-3.5 mr-1" />
+                                    Cancel
+                                  </Button>
+                                  <Button 
+                                    type="submit"
+                                    size="sm"
+                                    disabled={!editContent.trim() || isSubmitting}
+                                    className="h-8 rounded-full px-4 bg-stone-900 text-white"
+                                  >
+                                    {isSubmitting ? "Saving..." : "Save Changes"}
+                                  </Button>
+                                </div>
+                              </div>
+                            </form>
+                          ) : (
+                            <p className="text-stone-800 text-[1.02rem] leading-relaxed whitespace-pre-wrap font-medium">
+                              "{insight.content}"
+                            </p>
+                          )}
                           
                           <div className="flex items-center justify-between pt-3 border-t border-stone-100 mt-3">
                             <div className="flex items-center gap-2.5">
@@ -235,23 +372,128 @@ const Insights = () => {
                               </div>
                             </div>
 
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleToggleReaction(insight.id)}
-                              className={`h-8 rounded-full flex items-center gap-1.5 transition-all px-2.5 ${
-                                insight.user_has_reacted 
-                                  ? "text-rose-500 bg-rose-50 hover:bg-rose-100" 
-                                  : "text-stone-400 hover:text-rose-500 hover:bg-rose-50"
-                              }`}
-                            >
-                              <Heart className={`h-3.5 w-3.5 ${insight.user_has_reacted ? "fill-current" : ""}`} />
-                              {insight.reaction_count && insight.reaction_count > 0 ? (
-                                <span className="text-xs font-bold leading-none">{insight.reaction_count}</span>
-                              ) : null}
-                              <span className="sr-only">Reaction</span>
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              {user && insight.user_id === user.id && editingId !== insight.id && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => startEditing(insight)}
+                                  className="h-8 rounded-full flex items-center gap-1.5 text-stone-400 hover:text-stone-900 hover:bg-stone-50 transition-all px-2.5"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                  <span className="text-xs font-medium">Edit</span>
+                                </Button>
+                              )}
+                              
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleComments(insight.id)}
+                                className={`h-8 rounded-full flex items-center gap-1.5 transition-all px-2.5 text-stone-400 hover:text-stone-900 hover:bg-stone-50 ${showComments[insight.id] ? "bg-stone-50 text-stone-900" : ""}`}
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                {insight.comments && insight.comments.length > 0 ? (
+                                  <span className="text-xs font-bold leading-none">{insight.comments.length}</span>
+                                ) : null}
+                                <span className="sr-only">Toggle comments</span>
+                              </Button>
+
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleToggleReaction(insight.id)}
+                                className={`h-8 rounded-full flex items-center gap-1.5 transition-all px-2.5 ${
+                                  insight.user_has_reacted 
+                                    ? "text-rose-500 bg-rose-50 hover:bg-rose-100" 
+                                    : "text-stone-400 hover:text-rose-500 hover:bg-rose-50"
+                                }`}
+                              >
+                                <Heart className={`h-3.5 w-3.5 ${insight.user_has_reacted ? "fill-current" : ""}`} />
+                                {insight.reaction_count && insight.reaction_count > 0 ? (
+                                  <span className="text-xs font-bold leading-none">{insight.reaction_count}</span>
+                                ) : null}
+                                <span className="sr-only">Reaction</span>
+                              </Button>
+                            </div>
                           </div>
+
+                          {/* Comments Section */}
+                          {showComments[insight.id] && (
+                            <div className="mt-4 pt-4 border-t border-stone-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                              {insight.comments && insight.comments.length > 0 ? (
+                                <div className="space-y-3">
+                                  {insight.comments.map((comment) => (
+                                    <div key={comment.id} className="flex gap-3 group/comment bg-stone-50/50 p-3 rounded-2xl">
+                                      <div className="h-7 w-7 rounded-full bg-stone-200 flex items-center justify-center shrink-0 mt-0.5">
+                                        <span className="text-[10px] font-bold text-stone-500">
+                                          {comment.profiles?.first_name ? comment.profiles.first_name.charAt(0) : "?"}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-baseline justify-between gap-2">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="text-xs font-semibold text-stone-700">
+                                              {comment.profiles?.first_name 
+                                                ? `${comment.profiles.first_name} ${comment.profiles.last_name || ""}`.trim() 
+                                                : "User"}
+                                            </span>
+                                            <span className="text-[10px] text-stone-400 font-medium whitespace-nowrap">
+                                              {format(new Date(comment.created_at), "MMM d, h:mm a")}
+                                            </span>
+                                          </div>
+                                          {user && comment.user_id === user.id && (
+                                            <button 
+                                              onClick={() => handleDeleteComment(comment.id)}
+                                              className="text-stone-400 hover:text-rose-500 opacity-0 group-hover/comment:opacity-100 transition-opacity p-1 -mr-1"
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <p className="text-sm text-stone-600 mt-0.5 leading-relaxed break-words">
+                                          {comment.content}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-center py-2">
+                                  <p className="text-xs text-stone-400 font-medium">No comments yet. Be the first to reply!</p>
+                                </div>
+                              )}
+
+                              {user ? (
+                                <div className="flex gap-2 items-end pt-1">
+                                  <Textarea 
+                                    value={commentContent[insight.id] || ""}
+                                    onChange={(e) => setCommentContent(prev => ({ ...prev, [insight.id]: e.target.value }))}
+                                    placeholder="Write a comment..."
+                                    className="min-h-[40px] h-[40px] resize-none border-stone-200 focus:border-stone-300 rounded-2xl bg-white text-sm py-2.5 px-3 flex-1"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleCommentSubmit(insight.id);
+                                      }
+                                    }}
+                                  />
+                                  <Button 
+                                    onClick={() => handleCommentSubmit(insight.id)}
+                                    disabled={!commentContent[insight.id]?.trim() || isSubmittingComment}
+                                    size="icon"
+                                    className="h-10 w-10 shrink-0 rounded-full bg-stone-900 hover:bg-stone-800 text-white shadow-sm"
+                                  >
+                                    <Send className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="text-center py-2.5 bg-stone-50 rounded-xl border border-stone-100">
+                                  <p className="text-xs text-stone-500 font-medium">Sign in to leave a comment</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                         </CardContent>
                       </Card>
                     ))}
