@@ -20,16 +20,20 @@ import {
   ArrowUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { getUserReadingProgress, READING_START_DATE, CHAPTERS_PER_DAY } from "@/services/bibleService";
+import { differenceInDays } from "date-fns";
 
 const BibleReader: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
   
-  const initialBook = searchParams.get("book") || "Genesis";
-  const initialChapter = parseInt(searchParams.get("chapter") || "1", 10);
+  const initialBook = searchParams.get("book");
+  const initialChapter = searchParams.get("chapter") ? parseInt(searchParams.get("chapter")!, 10) : null;
 
-  const [selectedBook, setSelectedBook] = useState(initialBook);
-  const [selectedChapter, setSelectedChapter] = useState(initialChapter);
+  const [selectedBook, setSelectedBook] = useState(initialBook || "Genesis");
+  const [selectedChapter, setSelectedChapter] = useState(initialChapter || 1);
   const [translation, setTranslation] = useState<BibleTranslation>("niv");
   const [verses, setVerses] = useState<BibleVerse[]>([]);
   const [copyright, setCopyright] = useState<string | null>(null);
@@ -68,6 +72,49 @@ const BibleReader: React.FC = () => {
     }
     return list;
   }, []);
+
+  // Fetch user reading progress to determine the last read location
+  useEffect(() => {
+    // Only auto-navigate if no specific book/chapter was requested in the URL
+    if (!initialBook && user?.id && allChapters.length > 0) {
+      const determineStartingPoint = async () => {
+        try {
+          const progress = await getUserReadingProgress(user.id);
+          
+          const currentDay = Math.max(1, differenceInDays(new Date(), READING_START_DATE) + 1);
+          const maxCheckIndex = currentDay * CHAPTERS_PER_DAY;
+          
+          let firstUnread: { book: string; chapter: number } | null = null;
+          
+          // Look for the first unread chapter up to today's max reading
+          for (let i = 0; i < allChapters.length && i < maxCheckIndex; i++) {
+             const ch = allChapters[i];
+             if (!progress[ch.book]?.[ch.chapter]) {
+                firstUnread = ch;
+                break;
+             }
+          }
+          
+          // If all past chapters are read, default to today's scheduled reading or Genesis 1
+          if (firstUnread) {
+             setSelectedBook(firstUnread.book);
+             setSelectedChapter(firstUnread.chapter);
+          } else {
+             const todayStartIndex = (currentDay - 1) * CHAPTERS_PER_DAY;
+             const todayChapter = allChapters[Math.min(todayStartIndex, allChapters.length - 1)];
+             if (todayChapter) {
+                setSelectedBook(todayChapter.book);
+                setSelectedChapter(todayChapter.chapter);
+             }
+          }
+        } catch (error) {
+          console.error("Error fetching progress for BibleReader:", error);
+        }
+      };
+      
+      determineStartingPoint();
+    }
+  }, [user?.id, initialBook, allChapters]);
 
   const currentIndex = useMemo(
     () =>
