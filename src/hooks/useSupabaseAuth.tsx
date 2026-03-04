@@ -9,6 +9,8 @@ export type Profile = {
   id: string;
   first_name: string;
   last_name: string;
+  last_read_prayers_at?: string | null;
+  last_read_insights_at?: string | null;
 };
 
 const CURRENT_USER_KEY = "nmf_current_user_id";

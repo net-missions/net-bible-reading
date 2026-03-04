@@ -12,7 +12,7 @@ import { Lightbulb, Heart, MessageSquarePlus, Edit2, X, MessageCircle, Send, Tra
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const Insights = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [insights, setInsights] = useState<InsightType[]>([]);
   const [content, setContent] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -28,7 +28,11 @@ const Insights = () => {
 
   useEffect(() => {
     fetchInsights();
-  }, []);
+    if (user) {
+      updateProfile({ last_read_insights_at: new Date().toISOString() });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const fetchInsights = async () => {
     setIsLoading(true);

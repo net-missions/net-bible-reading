@@ -12,7 +12,7 @@ import { MessageSquarePlus, Heart, Edit2, X, Check, MessageCircle, Send, Trash2 
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const Prayer = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [prayers, setPrayers] = useState<PrayerType[]>([]);
   const [content, setContent] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -28,7 +28,11 @@ const Prayer = () => {
 
   useEffect(() => {
     fetchPrayers();
-  }, []);
+    if (user) {
+      updateProfile({ last_read_prayers_at: new Date().toISOString() });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const fetchPrayers = async () => {
     setIsLoading(true);

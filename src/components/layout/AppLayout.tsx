@@ -3,23 +3,23 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Book, Clock, BarChart, Settings, HandHeart, Sparkles, BookOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 
-type NavLink = { name: string; path: string; icon: React.ElementType };
-
-
+type NavLink = { name: string; path: string; icon: React.ElementType; badge?: number };
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { unreadPrayers, unreadInsights } = useUnreadCounts();
 
   const isHistoryOrStats = location.pathname === "/history" || location.pathname === "/statistics";
 
   const navLinks: NavLink[] = [
     { name: "Reading", path: "/checklist", icon: Book },
     { name: "Bible", path: "/bible", icon: BookOpen },
-    { name: "Prayer", path: "/prayer", icon: HandHeart },
-    { name: "Insights", path: "/insights", icon: Sparkles },
+    { name: "Prayer", path: "/prayer", icon: HandHeart, badge: unreadPrayers },
+    { name: "Insights", path: "/insights", icon: Sparkles, badge: unreadInsights },
     { name: "History", path: "/history", icon: Clock },
     { name: "Stats", path: "/statistics", icon: BarChart },
   ];
@@ -43,7 +43,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   key={link.path}
                   onClick={() => navigate(link.path)}
                   className={cn(
-                    "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                    "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors relative",
                     active
                       ? "bg-bible-red text-white shadow-sm"
                       : "text-stone-600 hover:bg-stone-100 hover:text-ink dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
@@ -51,6 +51,11 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 >
                   <Icon className="h-6 w-6" strokeWidth={active ? 2.5 : 2} />
                   <span>{link.name}</span>
+                  {link.badge !== undefined && link.badge > 0 && (
+                    <div className="ml-auto flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#ff5a1f] px-1.5 text-[11px] font-bold text-black border border-white/20 shadow-sm">
+                      {link.badge > 99 ? '99+' : link.badge}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -78,18 +83,25 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               key={link.path}
               onClick={() => navigate(link.path)}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 py-1 px-2 min-w-0 flex-1 rounded-lg transition-colors",
+                "relative flex flex-col items-center justify-center gap-0.5 py-1 px-2 min-w-0 flex-1 rounded-lg transition-colors",
                 active ? "text-bible-red" : "text-stone-800 hover:text-stone-600"
               )}
               aria-label={link.name}
             >
-              <Icon 
-                className={cn(
-                  "h-6 w-6 transition-colors",
-                  active ? "text-bible-red" : "text-stone-800"
+              <div className="relative">
+                <Icon 
+                  className={cn(
+                    "h-6 w-6 transition-colors",
+                    active ? "text-bible-red" : "text-stone-800"
+                  )}
+                  strokeWidth={active ? 2.5 : 2}
+                />
+                {link.badge !== undefined && link.badge > 0 && (
+                  <div className="absolute -top-1.5 -right-2.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff5a1f] px-1 text-[10px] font-bold text-black border border-white shadow-sm">
+                    {link.badge > 99 ? '99+' : link.badge}
+                  </div>
                 )}
-                strokeWidth={active ? 2.5 : 2}
-              />
+              </div>
               <span className={cn(
                 "text-[10px] leading-tight transition-all",
                 active ? "text-bible-red font-bold" : "text-stone-800 font-medium"
