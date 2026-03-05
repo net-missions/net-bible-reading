@@ -449,7 +449,7 @@ const Checklist = () => {
                                   ch.bookName,
                                   ch.chapterNumber,
                                   `${ch.bookName} ${ch.chapterNumber}`,
-                                  () => navigate(`/bible?book=${ch.bookName}&chapter=${ch.chapterNumber}`),
+                                  () => handleCheckboxChange(ch.bookName, ch.chapterNumber, !readingProgress[ch.bookName]?.[ch.chapterNumber]),
                                   undefined,
                                   true
                                 )}
